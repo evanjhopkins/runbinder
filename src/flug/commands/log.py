@@ -10,6 +10,18 @@ TAIL = 20
 @click.command()
 @click.argument("target", type=str)
 def log(target):
+    """
+    View the execution logs for a task.
+    
+    Shows the last 20 lines of output from task executions. Logs include both
+    stdout and stderr from the task's commands.
+    TARGET can be either a task namespace or a path to the task YAML file.
+    
+    \b
+    Examples:
+        $ flug log my_task.flug.yaml
+        $ flug log production.myproject.task1
+    """
     assert_db_initialized()
     _internal(target)
 

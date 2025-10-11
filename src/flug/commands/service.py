@@ -123,6 +123,18 @@ def get_scheduled_executions(now=datetime.now()):
 
 @click.command()
 def service():
+    """
+    Start the Flug service to execute scheduled tasks.
+    
+    This is a long-running process that monitors registered tasks and executes
+    them according to their schedules. The service should typically be run as a
+    background process or system service.
+    
+    \b
+    Examples:
+        $ flug service
+        $ nohup flug service > /dev/null 2>&1 &
+    """
     assert_db_initialized()
     log_internal("FLUG Service started", print_in_console=True)
     scheduled_executions = get_scheduled_executions()

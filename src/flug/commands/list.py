@@ -8,6 +8,16 @@ from rich.style import Style
 
 @click.command()
 def list():
+    """
+    Display all registered Flug tasks.
+    
+    Shows a table with task ID, namespace, active status, working directory,
+    and last run time with success/failure status.
+    
+    \b
+    Example:
+        $ flug list
+    """
     assert_db_initialized()
     _internal()
 

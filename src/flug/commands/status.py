@@ -9,6 +9,16 @@ from rich import print
 
 @click.command()
 def status():
+    """
+    Check the status of the Flug service.
+    
+    Displays whether the Flug service is running, the last heartbeat time,
+    internal storage location, and recent service logs.
+    
+    \b
+    Example:
+        $ flug status
+    """
     assert_db_initialized()   
     _internal()
 

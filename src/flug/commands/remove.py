@@ -8,6 +8,17 @@ from flug.utils.resolve_task import resolve_task
 @click.command()
 @click.argument("target", type=str)
 def remove(target):
+    """
+    Completely remove a task from Flug.
+    
+    This permanently deletes the task registration. The YAML file is not deleted.
+    TARGET can be either a task namespace or a path to the task YAML file.
+    
+    \b
+    Examples:
+        $ flug remove my_task.flug.yaml
+        $ flug remove production.myproject.task1
+    """
     assert_db_initialized()
     _internal(target)
 

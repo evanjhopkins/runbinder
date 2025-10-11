@@ -10,6 +10,16 @@ from pathlib import Path
 @click.command()
 @click.argument("file_path", type=click.Path(exists=True, dir_okay=False))
 def update(file_path):
+    """
+    Update a registered task with changes from its YAML file.
+    
+    Flug does not automatically detect changes to task definition files. Use this
+    command after modifying a task's YAML file to apply the changes.
+    
+    \b
+    Example:
+        $ flug update my_task.flug.yaml
+    """
     assert_db_initialized()
     _internal(file_path)
 

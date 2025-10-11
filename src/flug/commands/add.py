@@ -9,8 +9,20 @@ from pathlib import Path
 
 @click.command()
 @click.argument("file_path", type=click.Path(exists=True, dir_okay=False))
-@click.option("-e", "--enable", is_flag=True, help="Optional flag for enabling while adding a new task.")
+@click.option("-e", "--enable", is_flag=True, help="Enable the task immediately after adding.")
 def add(file_path, enable):
+    """
+    Register a new task with Flug.
+    
+    Reads a task definition YAML file and registers it with Flug. The task will be
+    disabled by default unless the -e/--enable flag is provided.
+    
+    \b
+    Examples:
+        $ flug add my_task.flug.yaml
+        $ flug add my_task.flug.yaml --enable
+        $ flug add -e my_task.flug.yaml
+    """
     assert_db_initialized()
     _internal(file_path, enable)
 
