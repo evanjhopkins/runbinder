@@ -16,7 +16,28 @@ It is generally recommended to install flug globally. You can install globally v
 pipx install flug
 ```
 
-### Define your task
+### Quick Setup with Init (Recommended)
+The fastest way to get started is using the `flug init` command. Navigate to the root directory of your project and run:
+
+```bash
+cd /path/to/your/project
+flug init
+```
+
+**Important:** Make sure you're in your project's root directory before running this command, as it will create the task file in the current directory and use it as the working directory for your task.
+
+This interactive command will:
+1. Prompt you for a unique namespace (with a sensible default based on your project name)
+2. Create a `<project_name>.flug.yaml` file with a basic task configuration
+3. Optionally register the task with flug
+4. Optionally enable the task immediately
+
+After running `flug init`, you can edit the generated YAML file to customize your command and schedule. The default task runs every minute, but you can change this to match your needs.
+
+### Manual Setup (Full Control)
+If you prefer full control over the setup process, you can manually create and configure your task:
+
+#### Define your task
 Create a yaml file in your project, such as my_task.atc.yaml. At a minimum, a flug task must specify a unique namespace, a command, and a schedule. There are many ways to define a schedule, but for this example, lets say we want to run the task every day at 1:00am.
 ```
 namespace: production.example.task
@@ -28,13 +49,13 @@ schedule:
         - 1:00:00
 ```
 
-### Register the task
+#### Register the task
 Flug needs to know your task exists. To do this, you can add your task to flug using the below command.
 ```
 flug add my_task.atc.yaml
 ```
 
-### Verify your task
+#### Verify your task
 Running `flug list` will show your task has indeed been added. You can run this command to view all registered flug tasks and some information about their status. We can see the working directory of the task defaulted to the location of our my_task.atc.yaml file. We also see that while the task has been added, it is disabled. A task will not run unless it is enabled.
 ```
 $> flug list
@@ -43,7 +64,7 @@ ID  Namespace                Enabled  Dir
 1   production.example.task  False    /home/user/code/test_project
 ```
 
-### Enable your task.
+#### Enable your task.
 A flug task has two states, enabled and disabled. In order for the scheduled executions to actually run, the task must be enabled.
 ```
 flug enable my_task.atc.yaml
