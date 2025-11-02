@@ -1,6 +1,4 @@
-![flug banner](./banner.jpg)
-
-# Flug - Flugsicherung
+# ✈️ Flug - Flugsicherung
 A Python based CLI tool for managing scheduled process execution.
 
 Customizable - More control than cronjob
