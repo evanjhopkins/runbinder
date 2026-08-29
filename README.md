@@ -60,14 +60,14 @@ runbinder run example.heartbeat
 runbinder enable example.heartbeat
 ```
 
-Start the scheduler:
+Start the scheduler in the background:
 
 ```sh
-runbinder service
+runbinder service --detach
 ```
 
-Keep this process running under your operating system's service manager for
-normal use. It handles `SIGINT` and `SIGTERM` and shuts down active work cleanly.
+RunBinder waits for a healthy heartbeat before returning. The service keeps
+running after the terminal closes.
 
 Check the service and task output from another terminal:
 
@@ -75,6 +75,7 @@ Check the service and task output from another terminal:
 runbinder status
 runbinder list
 runbinder log example.heartbeat
+runbinder service stop
 ```
 
 You can also run `runbinder init` inside a project to generate and optionally
@@ -151,6 +152,16 @@ run history remains in local storage until `runbinder nuke`.
 
 ## Operating the service
 
+Run in the background for normal use:
+
+```sh
+runbinder service --detach
+runbinder status
+runbinder service stop
+```
+
+Run in the foreground when developing or diagnosing the service:
+
 ```sh
 runbinder service \
   --concurrency 4 \
@@ -162,7 +173,10 @@ not overlap itself unless `allow_overlap` is true. If the service is delayed or
 the machine wakes from sleep, occurrences older than `--misfire-grace` are
 skipped instead of creating an unbounded catch-up queue.
 
-Only one service can use a RunBinder storage directory at a time.
+Only one service can use a RunBinder storage directory at a time. Detached mode
+persists the service PID, sends `SIGTERM` for graceful shutdown, and writes
+service output to RunBinder's internal log. It does not automatically restart
+after a machine reboot or process crash.
 
 ## Command reference
 
@@ -178,14 +192,16 @@ Only one service can use a RunBinder storage directory at a time.
 | `runbinder list` | Show tasks, state, directory, and latest result |
 | `runbinder log [-n 20] TARGET` | Show recent task output |
 | `runbinder status` | Show service health and internal logs |
-| `runbinder service [-j 4]` | Run the scheduler |
+| `runbinder service [-j 4]` | Run the scheduler in the foreground |
+| `runbinder service --detach` | Start the scheduler in the background |
+| `runbinder service stop` | Stop the running scheduler |
 | `runbinder nuke` | Delete all registrations and run history |
 
 Run `runbinder COMMAND --help` for flags and command-specific usage.
 
 ## Local state
 
-RunBinder stores its database, service lock, and internal log under:
+RunBinder stores its database, service lock, PID file, and internal log under:
 
 ```text
 ~/.local/share/runbinder/

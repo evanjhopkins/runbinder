@@ -243,10 +243,15 @@ func (a *application) statusCommand() *cobra.Command {
 			}
 			running := heartbeat != nil && heartbeat.Running && time.Since(heartbeat.Last) < 5*time.Second
 			last := "(none)"
+			pid := "(none)"
 			if heartbeat != nil {
 				last = heartbeat.Last.Local().Format("2006-01-02 15:04:05")
 			}
+			if servicePID, err := runbinderservice.ReadPID(a.paths.ServicePID); err == nil {
+				pid = strconv.Itoa(servicePID)
+			}
 			fmt.Fprintf(a.out, "Is Service Running: %s\n", strings.ToUpper(strconv.FormatBool(running)))
+			fmt.Fprintf(a.out, "Service PID: %s\n", pid)
 			fmt.Fprintf(a.out, "Last Heartbeat: %s\n", last)
 			fmt.Fprintf(a.out, "Internal Storage: %s\n", a.paths.StorageDir)
 			fmt.Fprintln(a.out, "Recent Logs:")
@@ -335,6 +340,8 @@ func (a *application) runCommand() *cobra.Command {
 func (a *application) serviceCommand() *cobra.Command {
 	var concurrency int
 	var misfireGrace time.Duration
+	var detach bool
+	var detachedChild bool
 	command := &cobra.Command{
 		Use:   "service",
 		Short: "Run the RunBinder scheduling service",
@@ -343,32 +350,165 @@ func (a *application) serviceCommand() *cobra.Command {
 			if concurrency < 1 {
 				return errors.New("concurrency must be at least 1")
 			}
-			if err := platform.EnsureStorage(a.paths); err != nil {
-				return err
+			if detach && detachedChild {
+				return errors.New("detach and detached-child cannot be used together")
 			}
-			lock, err := runbinderservice.AcquireLock(a.paths.ServiceLock)
-			if err != nil {
-				return err
+			if detach {
+				return a.startDetachedService(cmd.Context(), concurrency, misfireGrace)
 			}
-			defer lock.Close()
-			repository, err := a.repository()
-			if err != nil {
-				return err
-			}
-			defer repository.Close()
-
-			logger := platform.NewLogger(a.paths.InternalLog)
-			taskRunner := runner.New(repository, logger)
-			service := runbinderservice.New(repository, scheduler.New(time.Local), taskRunner, logger, time.Second, misfireGrace, concurrency)
-			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
-			defer stop()
-			fmt.Fprintln(a.out, "RunBinder service started. Press Ctrl+C to stop.")
-			return service.Run(ctx)
+			return a.runService(cmd.Context(), concurrency, misfireGrace, detachedChild)
 		},
 	}
 	command.Flags().IntVarP(&concurrency, "concurrency", "j", 4, "maximum number of tasks to run concurrently")
 	command.Flags().DurationVar(&misfireGrace, "misfire-grace", time.Minute, "maximum age of a delayed occurrence to run")
+	command.Flags().BoolVarP(&detach, "detach", "d", false, "run the service in the background")
+	command.Flags().BoolVar(&detachedChild, "detached-child", false, "internal detached service mode")
+	_ = command.Flags().MarkHidden("detached-child")
+	command.AddCommand(a.stopServiceCommand())
 	return command
+}
+
+func (a *application) runService(ctx context.Context, concurrency int, misfireGrace time.Duration, detachedChild bool) error {
+	if err := platform.EnsureStorage(a.paths); err != nil {
+		return err
+	}
+	lock, err := runbinderservice.AcquireLock(a.paths.ServiceLock)
+	if err != nil {
+		return err
+	}
+	defer lock.Close()
+	pid := os.Getpid()
+	if err := runbinderservice.WritePID(a.paths.ServicePID, pid); err != nil {
+		return err
+	}
+	defer runbinderservice.RemovePID(a.paths.ServicePID, pid)
+
+	repository, err := a.repository()
+	if err != nil {
+		return err
+	}
+	defer repository.Close()
+	logger := platform.NewLogger(a.paths.InternalLog)
+	taskRunner := runner.New(repository, logger)
+	service := runbinderservice.New(repository, scheduler.New(time.Local), taskRunner, logger, time.Second, misfireGrace, concurrency)
+	serviceCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if !detachedChild {
+		fmt.Fprintln(a.out, "RunBinder service started. Press Ctrl+C to stop.")
+	}
+	return service.Run(serviceCtx)
+}
+
+func (a *application) startDetachedService(ctx context.Context, concurrency int, misfireGrace time.Duration) error {
+	if err := platform.EnsureStorage(a.paths); err != nil {
+		return err
+	}
+	probe, err := runbinderservice.AcquireLock(a.paths.ServiceLock)
+	if err != nil {
+		return err
+	}
+	if err := probe.Close(); err != nil {
+		return err
+	}
+	if err := runbinderservice.RemovePID(a.paths.ServicePID, 0); err != nil {
+		return err
+	}
+	executable, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("resolve current executable: %w", err)
+	}
+	args := []string{
+		"service", "--detached-child",
+		"--concurrency", strconv.Itoa(concurrency),
+		"--misfire-grace", misfireGrace.String(),
+	}
+	startedAt := time.Now()
+	pid, err := runbinderservice.StartDetached(executable, args, a.paths.StorageDir, a.paths.InternalLog)
+	if err != nil {
+		return fmt.Errorf("start detached service: %w", err)
+	}
+
+	repository, err := a.repository()
+	if err != nil {
+		_ = runbinderservice.StopProcess(pid)
+		return err
+	}
+	defer repository.Close()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	timeout := time.NewTimer(5 * time.Second)
+	defer timeout.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			_ = runbinderservice.StopProcess(pid)
+			return ctx.Err()
+		case <-timeout.C:
+			_ = runbinderservice.StopProcess(pid)
+			return errors.New("detached service did not become healthy; check the internal log")
+		case <-ticker.C:
+			if !runbinderservice.ProcessRunning(pid) {
+				return errors.New("detached service exited during startup; check the internal log")
+			}
+			publishedPID, pidErr := runbinderservice.ReadPID(a.paths.ServicePID)
+			heartbeat, heartbeatErr := repository.Heartbeat(ctx, "service")
+			if pidErr == nil && publishedPID == pid && heartbeatErr == nil && heartbeat != nil && heartbeat.Running && !heartbeat.Last.Before(startedAt) {
+				fmt.Fprintf(a.out, "[RUNBINDER] Service started in the background (PID %d).\n", pid)
+				return nil
+			}
+		}
+	}
+}
+
+func (a *application) stopServiceCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "stop",
+		Short: "Stop the running service",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if err := platform.EnsureStorage(a.paths); err != nil {
+				return err
+			}
+			probe, lockErr := runbinderservice.AcquireLock(a.paths.ServiceLock)
+			if lockErr == nil {
+				_ = probe.Close()
+				_ = runbinderservice.RemovePID(a.paths.ServicePID, 0)
+				fmt.Fprintln(a.out, "[RUNBINDER] Service is not running.")
+				return nil
+			}
+			pid, err := runbinderservice.ReadPID(a.paths.ServicePID)
+			if err != nil {
+				return fmt.Errorf("service is running but its PID is unavailable: %w", err)
+			}
+			if !runbinderservice.ProcessRunning(pid) {
+				_ = runbinderservice.RemovePID(a.paths.ServicePID, pid)
+				fmt.Fprintln(a.out, "[RUNBINDER] Service is not running.")
+				return nil
+			}
+			if err := runbinderservice.StopProcess(pid); err != nil {
+				return fmt.Errorf("stop service: %w", err)
+			}
+
+			deadline := time.NewTimer(5 * time.Second)
+			defer deadline.Stop()
+			ticker := time.NewTicker(100 * time.Millisecond)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-cmd.Context().Done():
+					return cmd.Context().Err()
+				case <-deadline.C:
+					return errors.New("service did not stop within 5 seconds")
+				case <-ticker.C:
+					if !runbinderservice.ProcessRunning(pid) {
+						_ = runbinderservice.RemovePID(a.paths.ServicePID, pid)
+						fmt.Fprintln(a.out, "[RUNBINDER] Service stopped.")
+						return nil
+					}
+				}
+			}
+		},
+	}
 }
 
 func (a *application) initCommand() *cobra.Command {
@@ -466,6 +606,9 @@ func (a *application) nukeCommand() *cobra.Command {
 				return fmt.Errorf("cannot delete the database: %w", err)
 			}
 			defer lock.Close()
+			if err := runbinderservice.RemovePID(a.paths.ServicePID, 0); err != nil {
+				return err
+			}
 			removed := false
 			for _, path := range []string{a.paths.Database, a.paths.Database + "-wal", a.paths.Database + "-shm"} {
 				if err := os.Remove(path); err == nil {

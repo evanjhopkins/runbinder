@@ -37,7 +37,9 @@ scheduled time, result, and error text.
 `internal/service` coordinates these parts. A one-second ticker advances the
 scheduler cursor. Jobs run asynchronously behind a bounded semaphore, while a
 per-namespace reservation prevents accidental overlap. The service lock allows
-only one Unix service process per RunBinder storage directory.
+only one Unix service process per RunBinder storage directory. Detached mode
+re-executes the binary in a new session, publishes its PID, and confirms a fresh
+heartbeat before the parent exits.
 
 ## Scheduling policies
 

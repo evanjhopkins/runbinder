@@ -13,6 +13,7 @@ type Paths struct {
 	Database    string
 	InternalLog string
 	ServiceLock string
+	ServicePID  string
 }
 
 func ResolvePaths() (Paths, error) {
@@ -33,6 +34,7 @@ func ResolvePaths() (Paths, error) {
 		Database:    filepath.Join(abs, "runbinder.db"),
 		InternalLog: filepath.Join(abs, "runbinder.log"),
 		ServiceLock: filepath.Join(abs, "service.lock"),
+		ServicePID:  filepath.Join(abs, "service.pid"),
 	}, nil
 }
 
