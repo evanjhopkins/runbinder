@@ -1,1 +1,0 @@
-LOG_FILE_POSTFIX = ".flug.log"

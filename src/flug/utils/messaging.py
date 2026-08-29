@@ -1,1 +1,0 @@
-FAILED_TO_RESOLVE_TASK = 'Unable to resolve task. Must provide a path to a task file or a namespace.'

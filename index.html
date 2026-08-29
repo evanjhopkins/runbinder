@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="RunBinder keeps task schedules with your code for projects running directly on a server.">
+  <meta name="theme-color" content="#f7f7f4">
+  <title>RunBinder | task schedules that live with your code</title>
+  <style>
+    :root {
+      --bg: #f7f7f4;
+      --surface: #ffffff;
+      --ink: #161817;
+      --muted: #686d69;
+      --line: #dedfdb;
+      --accent: #245cff;
+      --accent-soft: #e9eeff;
+      --terminal: #171918;
+      --terminal-muted: #909691;
+      --success: #69d58a;
+      --sans: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .wrap {
+      width: min(1080px, calc(100% - 48px));
+      margin: 0 auto;
+    }
+
+    .nav {
+      height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+      text-decoration: none;
+    }
+
+    .mark {
+      width: 18px;
+      height: 18px;
+      border: 5px solid var(--ink);
+      border-radius: 50%;
+      box-shadow: inset 0 0 0 2px var(--bg);
+      background: var(--accent);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 26px;
+      font-size: 13px;
+      font-weight: 550;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+    }
+
+    .nav-links a:hover,
+    .nav-links a:focus-visible {
+      color: var(--accent);
+    }
+
+    .hero {
+      min-height: 680px;
+      padding: 84px 0 112px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(420px, 0.9fr);
+      gap: clamp(56px, 8vw, 100px);
+      align-items: center;
+    }
+
+    .hero > *,
+    .install-grid > *,
+    .positioning > * {
+      min-width: 0;
+    }
+
+    .kicker {
+      margin: 0 0 22px;
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 650px;
+      margin-bottom: 28px;
+      font-size: clamp(52px, 6vw, 76px);
+      font-weight: 520;
+      line-height: 1.02;
+      letter-spacing: -0.055em;
+    }
+
+    .lead {
+      max-width: 580px;
+      margin-bottom: 36px;
+      color: var(--muted);
+      font-size: 19px;
+      line-height: 1.55;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .button {
+      min-height: 46px;
+      padding: 0 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      transition: border-color 150ms ease, transform 150ms ease;
+    }
+
+    .button.primary {
+      color: #fff;
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+
+    .button:hover,
+    .button:focus-visible {
+      border-color: var(--ink);
+      transform: translateY(-1px);
+    }
+
+    .terminal {
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+      border-radius: 12px;
+      color: #f3f5f3;
+      background: var(--terminal);
+      box-shadow: 0 18px 50px rgba(22, 24, 23, 0.12);
+    }
+
+    .terminal-bar {
+      min-height: 44px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--terminal-muted);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .terminal-bar::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 13px 0 #59605b, 26px 0 #59605b;
+      margin-right: 28px;
+    }
+
+    .terminal-body {
+      padding: 24px;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.7;
+      scrollbar-width: thin;
+    }
+
+    .terminal-line {
+      min-width: 500px;
+      white-space: pre;
+    }
+
+    .terminal-gap {
+      height: 14px;
+    }
+
+    .prompt {
+      color: #8ba6ff;
+    }
+
+    .muted {
+      color: var(--terminal-muted);
+    }
+
+    .success {
+      color: var(--success);
+    }
+
+    .signal {
+      padding: 20px 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .signal-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .section {
+      padding: 120px 0;
+    }
+
+    .section-heading {
+      max-width: 650px;
+      margin-bottom: 58px;
+    }
+
+    h2 {
+      margin-bottom: 18px;
+      font-size: clamp(38px, 4.5vw, 56px);
+      font-weight: 520;
+      line-height: 1.08;
+      letter-spacing: -0.045em;
+    }
+
+    .section-heading p {
+      max-width: 560px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.6;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .step {
+      min-height: 260px;
+      padding: 26px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.48);
+    }
+
+    .step-number {
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .step h3 {
+      margin: 88px 0 12px;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.025em;
+    }
+
+    .step p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .positioning {
+      margin-top: 80px;
+      padding: 48px;
+      display: grid;
+      grid-template-columns: 0.65fr 1.35fr;
+      gap: 48px;
+      border-radius: 16px;
+      background: var(--accent-soft);
+    }
+
+    .positioning .kicker {
+      margin: 4px 0 0;
+    }
+
+    .positioning p {
+      margin-bottom: 0;
+      font-size: clamp(22px, 2.6vw, 31px);
+      font-weight: 520;
+      line-height: 1.35;
+      letter-spacing: -0.025em;
+    }
+
+    .positioning span {
+      color: #626b86;
+    }
+
+    .install {
+      padding: 100px 0;
+      color: #f7f7f4;
+      background: var(--terminal);
+    }
+
+    .install-grid {
+      display: grid;
+      grid-template-columns: 0.8fr 1.2fr;
+      gap: 72px;
+      align-items: center;
+    }
+
+    .install h2 {
+      margin: 0;
+      max-width: 420px;
+    }
+
+    .install-copy p {
+      color: #a9afaa;
+      font-size: 16px;
+      line-height: 1.55;
+    }
+
+    .command {
+      min-width: 0;
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      border: 1px solid #404440;
+      border-radius: 9px;
+      background: #202321;
+      overflow: hidden;
+    }
+
+    .command code {
+      min-width: 0;
+      flex: 1;
+      padding: 0 18px;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .copy {
+      align-self: stretch;
+      width: 78px;
+      border: 0;
+      border-left: 1px solid #404440;
+      color: #fff;
+      background: transparent;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .copy:hover,
+    .copy:focus-visible {
+      color: #fff;
+      background: var(--accent);
+    }
+
+    .footer {
+      padding: 28px 0;
+      border-top: 1px solid #303330;
+      color: #909691;
+      background: var(--terminal);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .footer-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .footer a {
+      color: #fff;
+      text-decoration: none;
+    }
+
+    .hero-copy,
+    .terminal {
+      animation: enter 600ms ease both;
+    }
+
+    .terminal {
+      animation-delay: 100ms;
+    }
+
+    @keyframes enter {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 860px) {
+      .hero {
+        min-height: auto;
+        grid-template-columns: 1fr;
+        padding: 72px 0 88px;
+      }
+
+      .terminal {
+        width: 100%;
+      }
+
+      .signal-row {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        row-gap: 16px;
+      }
+
+      .steps {
+        grid-template-columns: 1fr;
+      }
+
+      .step {
+        min-height: 0;
+      }
+
+      .step h3 {
+        margin-top: 40px;
+      }
+
+      .positioning,
+      .install-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .wrap {
+        width: min(100% - 32px, 1080px);
+      }
+
+      .nav {
+        height: 66px;
+      }
+
+      .nav-links {
+        gap: 18px;
+      }
+
+      .nav-links a:first-child {
+        display: none;
+      }
+
+      .hero {
+        padding: 54px 0 72px;
+        gap: 48px;
+      }
+
+      h1 {
+        font-size: clamp(46px, 14vw, 62px);
+      }
+
+      .lead {
+        font-size: 17px;
+      }
+
+      .actions {
+        display: grid;
+      }
+
+      .button {
+        width: 100%;
+      }
+
+      .terminal-body {
+        padding: 20px;
+      }
+
+      .signal-row {
+        font-size: 9px;
+      }
+
+      .section {
+        padding: 84px 0;
+      }
+
+      .positioning {
+        margin-top: 56px;
+        padding: 30px;
+        gap: 24px;
+      }
+
+      .install {
+        padding: 76px 0;
+      }
+
+      .install-grid {
+        gap: 38px;
+      }
+
+      .command {
+        align-items: stretch;
+      }
+
+      .footer-row {
+        flex-direction: column;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      .hero-copy,
+      .terminal {
+        animation: none;
+      }
+
+      .button {
+        transition: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="wrap nav">
+    <a class="brand" href="#top" aria-label="RunBinder home">
+      <span class="mark" aria-hidden="true"></span>
+      RunBinder
+    </a>
+    <nav class="nav-links" aria-label="Primary navigation">
+      <a href="#how">How it works</a>
+      <a href="https://github.com/evanjhopkins/RunBinder">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="wrap hero">
+      <div class="hero-copy">
+        <p class="kicker">File-based task scheduling</p>
+        <h1>Task schedules that live with your code.</h1>
+        <p class="lead">
+          Define tasks beside your project, commit them with your code, then
+          register once and run them from anywhere.
+        </p>
+        <div class="actions">
+          <a class="button primary" href="#install">Install RunBinder</a>
+          <a class="button" href="https://github.com/evanjhopkins/RunBinder">View on GitHub</a>
+        </div>
+      </div>
+
+      <div class="terminal" aria-label="RunBinder task lifecycle example">
+        <div class="terminal-bar">Task lifecycle</div>
+        <div class="terminal-body">
+          <div class="terminal-line"><span class="prompt">~/reporting $</span> runbinder add --enable reports.runbinder.yaml</div>
+          <div class="terminal-line muted">[RUNBINDER] Registered task "reports.daily".</div>
+          <div class="terminal-gap"></div>
+          <div class="terminal-line"><span class="prompt">~ $</span> runbinder run reports.daily</div>
+          <div class="terminal-line success">[RUNBINDER] Task "reports.daily" completed successfully.</div>
+          <div class="terminal-gap"></div>
+          <div class="terminal-line"><span class="prompt">~ $</span> runbinder list</div>
+          <div class="terminal-line muted">ID  NAMESPACE      ACTIVE  DIRECTORY    LAST RUN</div>
+          <div class="terminal-line">1   reports.daily  true    ./reporting  <span class="success">06:00:04 (SUCC)</span></div>
+          <div class="terminal-gap"></div>
+          <div class="terminal-line"><span class="prompt">~ $</span> runbinder log -n 2 reports.daily</div>
+          <div class="terminal-line muted">Fetched 142 records</div>
+          <div class="terminal-line muted">Report written to reports/daily.pdf</div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="signal" aria-label="Product highlights">
+      <div class="wrap signal-row">
+        <span>Single Go binary</span>
+        <span>Version-controlled tasks</span>
+        <span>Run from anywhere</span>
+        <span>No external runtime</span>
+      </div>
+    </aside>
+
+    <section class="wrap section" id="how">
+      <div class="section-heading">
+        <p class="kicker">How it works</p>
+        <h2>Definition in the repo. State on the server.</h2>
+        <p>RunBinder keeps schedules portable without making runtime state part of your project.</p>
+      </div>
+
+      <div class="steps">
+        <article class="step">
+          <span class="step-number">01</span>
+          <h3>Define</h3>
+          <p>Write the command, working directory, and schedule in a YAML file beside your code.</p>
+        </article>
+        <article class="step">
+          <span class="step-number">02</span>
+          <h3>Register</h3>
+          <p>Bind a validated snapshot locally, then manage the task by namespace from any directory.</p>
+        </article>
+        <article class="step">
+          <span class="step-number">03</span>
+          <h3>Run</h3>
+          <p>Use one service for schedules, bounded concurrency, run history, logs, and overlap protection.</p>
+        </article>
+      </div>
+
+      <div class="positioning">
+        <p class="kicker">Right-sized orchestration</p>
+        <p>
+          Lightweight task scheduling for projects that run directly on a
+          server. <span>Natural for solo work and useful for teams that want
+          straightforward production jobs to stay straightforward.</span>
+        </p>
+      </div>
+    </section>
+
+    <section class="install" id="install">
+      <div class="wrap install-grid">
+        <div>
+          <p class="kicker">Get started</p>
+          <h2>One command. One binary.</h2>
+        </div>
+        <div class="install-copy">
+          <p>Install with Go 1.24 or newer, then run <code>runbinder init</code> inside a project.</p>
+          <div class="command">
+            <code id="install-command">go install github.com/evanjhopkins/RunBinder/cmd/runbinder@latest</code>
+            <button class="copy" type="button" data-copy="install-command" aria-label="Copy install command">Copy</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-row">
+      <span>RunBinder / MIT licensed</span>
+      <a href="https://github.com/evanjhopkins/RunBinder">Documentation on GitHub</a>
+    </div>
+  </footer>
+
+  <script>
+    document.querySelectorAll("[data-copy]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const target = document.getElementById(button.dataset.copy);
+        if (!target) return;
+
+        try {
+          await navigator.clipboard.writeText(target.textContent.trim());
+          button.textContent = "Copied";
+          window.setTimeout(() => { button.textContent = "Copy"; }, 1600);
+        } catch {
+          window.getSelection().selectAllChildren(target);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

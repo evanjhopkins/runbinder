@@ -1,117 +1,220 @@
-# ✈️ Flug - Flugsicherung
-A Python based CLI tool for managing scheduled process execution.
+# RunBinder
 
-Customizable - More control than cronjob
-File Based - Flug task are defined in yaml files. This allows
-- tasks to be colocated with their relevant codebase
-- portable and sharable - flug task can be included in repositories
+RunBinder keeps scheduled commands next to the code they operate on.
+
+Each task is a small YAML file that describes what to run, where to run it, and
+when it is due. You register that file once, then a single local service runs
+enabled tasks and records their results. Definitions remain portable and
+reviewable; runtime state stays local.
+
+RunBinder is one Go binary backed by SQLite. It does not require a language
+runtime, external database, or system cron configuration.
+
+## How it works
+
+```text
+task.runbinder.yaml  -- add/update -->  local registry  <-- service -->  commands
+                                             |
+                                      history and status
+```
+
+The registry stores a validated snapshot of each definition. This is
+intentional: editing a YAML file does not change a running schedule until you
+apply it with `runbinder update`.
+
+## Install
+
+Install the latest release with Go 1.24 or newer:
+
+```sh
+go install github.com/evanjhopkins/RunBinder/cmd/runbinder@latest
+```
+
+To install the current checkout instead:
+
+```sh
+go install ./cmd/runbinder
+```
+
+Ensure `$(go env GOPATH)/bin`, or your configured `GOBIN`, is on `PATH`.
 
 ## Quick start
 
-### Install flug
-It is generally recommended to install flug globally. You can install globally via pipx.
-```
-pipx install flug
-```
+Create `heartbeat.runbinder.yaml` in a project directory:
 
-### Quick Setup with Init (Recommended)
-The fastest way to get started is using the `flug init` command. Navigate to the root directory of your project and run:
-
-```bash
-cd /path/to/your/project
-flug init
-```
-
-**Important:** Make sure you're in your project's root directory before running this command, as it will create the task file in the current directory and use it as the working directory for your task.
-
-This interactive command will:
-1. Prompt you for a unique namespace (with a sensible default based on your project name)
-2. Create a `<project_name>.flug.yaml` file with a basic task configuration
-3. Optionally register the task with flug
-4. Optionally enable the task immediately
-
-After running `flug init`, you can edit the generated YAML file to customize your command and schedule. The default task runs every minute, but you can change this to match your needs.
-
-### Manual Setup (Full Control)
-If you prefer full control over the setup process, you can manually create and configure your task:
-
-#### Define your task
-Create a yaml file in your project, such as my_task.atc.yaml. At a minimum, a flug task must specify a unique namespace, a command, and a schedule. There are many ways to define a schedule, but for this example, lets say we want to run the task every day at 1:00am.
-```
-namespace: production.example.task
-command:
-    - echo "running with flug"
-    - python my_task.py
+```yaml
+namespace: example.heartbeat
+command: echo "RunBinder fired at $(date)"
 schedule:
-    time_of_day
-        - 1:00:00
+  window_interval:
+    start: "00:00:00"
+    stop: "23:59:59"
+    interval_sec: 60
 ```
 
-#### Register the task
-Flug needs to know your task exists. To do this, you can add your task to flug using the below command.
-```
-flug add my_task.atc.yaml
+Register, test, and enable it:
+
+```sh
+runbinder add heartbeat.runbinder.yaml
+runbinder run example.heartbeat
+runbinder enable example.heartbeat
 ```
 
-#### Verify your task
-Running `flug list` will show your task has indeed been added. You can run this command to view all registered flug tasks and some information about their status. We can see the working directory of the task defaulted to the location of our my_task.atc.yaml file. We also see that while the task has been added, it is disabled. A task will not run unless it is enabled.
-```
-$> flug list
+Start the scheduler:
 
-ID  Namespace                Enabled  Dir                     
-1   production.example.task  False    /home/user/code/test_project
+```sh
+runbinder service
 ```
 
-#### Enable your task.
-A flug task has two states, enabled and disabled. In order for the scheduled executions to actually run, the task must be enabled.
-```
-flug enable my_task.atc.yaml
+Keep this process running under your operating system's service manager for
+normal use. It handles `SIGINT` and `SIGTERM` and shuts down active work cleanly.
+
+Check the service and task output from another terminal:
+
+```sh
+runbinder status
+runbinder list
+runbinder log example.heartbeat
 ```
 
-Tip: When adding task you can also activate it in the same command by adding a -e flag
-```
-flug add -e my_task.atc.yaml
+You can also run `runbinder init` inside a project to generate and optionally
+register a starter definition interactively.
+
+## Task definitions
+
+A definition requires a unique `namespace`, a `command`, and at least one
+schedule. Unknown fields and invalid schedules are rejected during `add` or
+`update`.
+
+```yaml
+namespace: reports.daily
+
+# A string runs as-is. A list is joined with && and stops on the first failure.
+command:
+  - . .venv/bin/activate
+  - python generate_report.py
+
+# Five-field cron, six-field cron with seconds, and cron descriptors work.
+cron: "0 6 * * 1-5"
+
+# Schedule forms can be combined with cron.
+schedule:
+  time_of_day:
+    - "12:00:00"
+    - "18:00:00"
+  window_interval:
+    start: "09:00:00"
+    stop: "17:00:00"
+    interval_sec: 1800
+
+# Defaults to the directory containing this file. Relative paths start there.
+working_dir: .
+
+# Runs of one task do not overlap unless explicitly allowed.
+allow_overlap: false
 ```
 
-Now if we run `flug list` again, we see the task is enabled
-```
-$> flug list
+All schedules use the service's local time zone. Clock values must use
+`HH:MM:SS`. When multiple schedule forms produce the same instant, RunBinder
+runs the task once.
 
-ID  Namespace                Enabled  Dir                     
-1   production.example.task  True     /home/user/code/test_project
-```
+Commands are executed through the platform shell in `working_dir`. Standard
+output and standard error are appended to `.runbinder.log` in that directory.
+Treat task definitions like shell scripts: only register files you trust.
 
-Now this task is all set. It will run every day at 1pm.
+## Task lifecycle
 
-## Managing tasks
+Register a definition. New tasks are disabled unless `--enable` is supplied:
 
-### View all flug tasks
-Running `flug list` will show you all known flug task and if they are enabled.
-```
-$> flug list
-
-ID  Namespace                Enabled  Dir                     
-1   production.example.task  True     /home/user/code/test_project
+```sh
+runbinder add reports.runbinder.yaml
+runbinder add --enable reports.runbinder.yaml
 ```
 
-### Disable your task
-If you want to stop your task from running, you can disabled it.
-```
-flug disable my_task.atc.yaml
-```
-It will remain registered with flug. So if you want it to start running again, simply enable
-```
-flug enable my_task.atc.yaml
+After editing a registered definition, apply its new snapshot:
+
+```sh
+runbinder update reports.runbinder.yaml
 ```
 
-### Update your task
-If you make changes to your task definition (the yaml file), flug will not automatically pick them up. You must tell flug to update the task.
-```
-flug update my_task.atc.yaml
+Commands that accept `TARGET` can use either the namespace or definition path:
+
+```sh
+runbinder run reports.daily
+runbinder disable reports.runbinder.yaml
+runbinder enable reports.daily
+runbinder remove reports.daily
 ```
 
-### Delete your task
-If you want to totally remove your task from flug, you can run. 
+`remove` deletes the registration, not the YAML file or task-output log. Existing
+run history remains in local storage until `runbinder nuke`.
+
+## Operating the service
+
+```sh
+runbinder service \
+  --concurrency 4 \
+  --misfire-grace 1m
 ```
-flug remove my_task.atc.yaml
+
+Different tasks may run concurrently up to the configured limit. A task does
+not overlap itself unless `allow_overlap` is true. If the service is delayed or
+the machine wakes from sleep, occurrences older than `--misfire-grace` are
+skipped instead of creating an unbounded catch-up queue.
+
+Only one service can use a RunBinder storage directory at a time.
+
+## Command reference
+
+| Command | Purpose |
+| --- | --- |
+| `runbinder init` | Create a starter definition interactively |
+| `runbinder add [-e] FILE` | Register a definition, optionally enabled |
+| `runbinder update FILE` | Apply changes from a registered definition |
+| `runbinder run TARGET` | Execute a registered task immediately |
+| `runbinder enable TARGET` | Enable scheduled execution |
+| `runbinder disable TARGET` | Pause scheduled execution |
+| `runbinder remove TARGET` | Remove a registration |
+| `runbinder list` | Show tasks, state, directory, and latest result |
+| `runbinder log [-n 20] TARGET` | Show recent task output |
+| `runbinder status` | Show service health and internal logs |
+| `runbinder service [-j 4]` | Run the scheduler |
+| `runbinder nuke` | Delete all registrations and run history |
+
+Run `runbinder COMMAND --help` for flags and command-specific usage.
+
+## Local state
+
+RunBinder stores its database, service lock, and internal log under:
+
+```text
+~/.local/share/runbinder/
 ```
+
+Set `RUNBINDER_HOME` to use another location. `runbinder status` prints the
+active location. `runbinder nuke` removes the database and history but leaves
+task definitions and task-output logs untouched.
+
+## Development
+
+Install the current checkout as `runbinderd` so it can coexist with a production
+`runbinder` installation:
+
+```sh
+./scripts/install_dev.sh
+```
+
+The script installs to `GOBIN` when set, otherwise to `$(go env GOPATH)/bin`.
+That directory must be on `PATH`.
+
+Run the project checks and build directly with Go:
+
+```sh
+gofmt -w cmd internal
+go vet ./...
+go test -race ./...
+go build -o bin/runbinder ./cmd/runbinder
+```
+
+See [docs/architecture.md](docs/architecture.md) for implementation boundaries
+and scheduler design decisions.
