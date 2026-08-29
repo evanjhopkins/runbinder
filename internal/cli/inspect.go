@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
@@ -23,23 +24,56 @@ func (c *commands) listCommand() *cobra.Command {
 				fmt.Fprintln(c.out, "[RUNBINDER] No tasks have been registered.")
 				return nil
 			}
-			writer := tabwriter.NewWriter(c.out, 0, 4, 2, ' ', 0)
+			var output bytes.Buffer
+			writer := tabwriter.NewWriter(&output, 0, 4, 2, ' ', 0)
 			fmt.Fprintln(writer, "ID\tNAMESPACE\tACTIVE\tDIRECTORY\tLAST RUN")
+			rows := make([]taskListRow, 0, len(summaries))
 			for _, summary := range summaries {
 				lastRun := "(none)"
+				lastRunSuccess := false
+				hasLastRun := summary.LastRun != nil
 				if summary.LastRun != nil {
 					status := "FAIL"
 					if summary.LastRun.Success {
 						status = "SUCC"
+						lastRunSuccess = true
 					}
 					lastRun = summary.LastRun.StartedAt.Local().Format("2006-01-02 15:04:05") + " (" + status + ")"
 				}
 				task := summary.Task
-				fmt.Fprintf(writer, "%d\t%s\t%t\t%s\t%s\n", task.ID, task.Namespace, task.Active, task.WorkingDir, lastRun)
+				active := strconv.FormatBool(task.Active)
+				fmt.Fprintf(writer, "%d\t%s\t%s\t%s\t%s\n", task.ID, task.Namespace, active, task.WorkingDir, lastRun)
+				rows = append(rows, taskListRow{
+					namespace:  task.Namespace,
+					active:     active,
+					workingDir: task.WorkingDir,
+					lastRun:    lastRun,
+					enabled:    task.Active,
+					success:    lastRunSuccess,
+					hasRun:     hasLastRun,
+				})
 			}
-			return writer.Flush()
+			if err := writer.Flush(); err != nil {
+				return err
+			}
+			lines := strings.Split(strings.TrimSuffix(output.String(), "\n"), "\n")
+			fmt.Fprintln(c.out, lines[0])
+			for index, row := range rows {
+				fmt.Fprintln(c.out, c.taskListLine(lines[index+1], row))
+			}
+			return nil
 		},
 	}
+}
+
+type taskListRow struct {
+	namespace  string
+	active     string
+	workingDir string
+	lastRun    string
+	enabled    bool
+	success    bool
+	hasRun     bool
 }
 
 func (c *commands) statusCommand() *cobra.Command {
