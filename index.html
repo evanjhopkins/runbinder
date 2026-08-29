@@ -277,39 +277,74 @@
       line-height: 1.6;
     }
 
-    .steps {
+    .walkthrough {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
+      gap: 22px;
     }
 
-    .step {
-      min-height: 260px;
-      padding: 26px;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.48);
+    .walkthrough-step {
+      display: grid;
+      grid-template-columns: minmax(220px, 0.62fr) minmax(0, 1.38fr);
+      gap: clamp(28px, 6vw, 72px);
+      align-items: center;
+      padding: 30px 0;
+      border-top: 1px solid var(--line);
     }
 
-    .step-number {
+    .walkthrough-step:last-child {
+      border-bottom: 1px solid var(--line);
+    }
+
+    .walkthrough-step:nth-child(even) .walkthrough-copy {
+      order: 2;
+    }
+
+    .walkthrough-index {
       color: var(--accent);
       font-family: var(--mono);
       font-size: 11px;
       font-weight: 700;
     }
 
-    .step h3 {
-      margin: 88px 0 12px;
-      font-size: 22px;
+    .walkthrough-copy h3 {
+      margin: 12px 0;
+      font-size: 25px;
       font-weight: 600;
       letter-spacing: -0.025em;
     }
 
-    .step p {
+    .walkthrough-copy p {
       margin-bottom: 0;
       color: var(--muted);
       font-size: 15px;
       line-height: 1.55;
+    }
+
+    .walkthrough .terminal {
+      border-radius: 10px;
+      box-shadow: none;
+    }
+
+    .walkthrough .terminal-bar {
+      min-height: 38px;
+    }
+
+    .walkthrough .terminal-body {
+      padding: 17px 20px;
+      font-size: 10px;
+      line-height: 1.65;
+    }
+
+    .walkthrough .terminal-line {
+      min-width: 440px;
+    }
+
+    .yaml-key {
+      color: #8ba6ff;
+    }
+
+    .yaml-value {
+      color: #f3f5f3;
     }
 
     .positioning {
@@ -459,16 +494,13 @@
         row-gap: 16px;
       }
 
-      .steps {
+      .walkthrough-step {
         grid-template-columns: 1fr;
+        gap: 24px;
       }
 
-      .step {
-        min-height: 0;
-      }
-
-      .step h3 {
-        margin-top: 40px;
+      .walkthrough-step:nth-child(even) .walkthrough-copy {
+        order: 0;
       }
 
       .positioning,
@@ -625,25 +657,82 @@
     <section class="wrap section" id="how">
       <div class="section-heading">
         <p class="kicker">How it works</p>
-        <h2>Definition in the repo. State on the server.</h2>
-        <p>RunBinder keeps schedules portable without making runtime state part of your project.</p>
+        <h2>From a file in your project to a task you can manage anywhere.</h2>
+        <p>One definition, one registration, one small service. Everything else is a normal command.</p>
       </div>
 
-      <div class="steps">
-        <article class="step">
-          <span class="step-number">01</span>
-          <h3>Define</h3>
-          <p>Write the command, working directory, and schedule in a YAML file beside your code.</p>
+      <div class="walkthrough">
+        <article class="walkthrough-step">
+          <div class="walkthrough-copy">
+            <span class="walkthrough-index">01 / DEFINE</span>
+            <h3>Put the schedule beside the work.</h3>
+            <p>Create one small YAML file in your project. It is readable in review, easy to commit, and travels with the code it runs.</p>
+          </div>
+          <div class="terminal" aria-label="Task definition example">
+            <div class="terminal-bar">~/reporting/reports.runbinder.yaml</div>
+            <div class="terminal-body">
+              <div class="terminal-line"><span class="yaml-key">namespace:</span> <span class="yaml-value">reports.daily</span></div>
+              <div class="terminal-line"><span class="yaml-key">command:</span></div>
+              <div class="terminal-line">  - <span class="yaml-value">./scripts/build-report.sh</span></div>
+              <div class="terminal-line"><span class="yaml-key">cron:</span> <span class="yaml-value">"0 6 * * *"</span></div>
+              <div class="terminal-line"><span class="yaml-key">working_dir:</span> <span class="yaml-value">.</span></div>
+            </div>
+          </div>
         </article>
-        <article class="step">
-          <span class="step-number">02</span>
-          <h3>Register</h3>
-          <p>Bind a validated snapshot locally, then manage the task by namespace from any directory.</p>
+
+        <article class="walkthrough-step">
+          <div class="walkthrough-copy">
+            <span class="walkthrough-index">02 / REGISTER</span>
+            <h3>Validate it once.</h3>
+            <p>Register the file on the server when you are ready. RunBinder validates the definition and gives the task a namespace you can use from any directory.</p>
+          </div>
+          <div class="terminal" aria-label="Task registration example">
+            <div class="terminal-bar">~/reporting</div>
+            <div class="terminal-body">
+              <div class="terminal-line"><span class="prompt">~/reporting $</span> runbinder add --enable reports.runbinder.yaml</div>
+              <div class="terminal-line success">[RUNBINDER] Registered task "reports.daily".</div>
+              <div class="terminal-gap"></div>
+              <div class="terminal-line muted">Task is enabled and ready for the service.</div>
+            </div>
+          </div>
         </article>
-        <article class="step">
-          <span class="step-number">03</span>
-          <h3>Run</h3>
-          <p>Use one service for schedules, bounded concurrency, run history, logs, and overlap protection.</p>
+
+        <article class="walkthrough-step">
+          <div class="walkthrough-copy">
+            <span class="walkthrough-index">03 / SCHEDULE</span>
+            <h3>Start one background service.</h3>
+            <p>RunBinder handles due schedules with bounded concurrency, run history, logs, and overlap protection. It stays out of the way after that.</p>
+          </div>
+          <div class="terminal" aria-label="Background service example">
+            <div class="terminal-bar">~/reporting</div>
+            <div class="terminal-body">
+              <div class="terminal-line"><span class="prompt">~/reporting $</span> runbinder service --detach</div>
+              <div class="terminal-line success">[RUNBINDER] Service started in the background (PID 23287).</div>
+              <div class="terminal-gap"></div>
+              <div class="terminal-line"><span class="prompt">~/reporting $</span> runbinder status</div>
+              <div class="terminal-line success">Is Service Running: TRUE</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="walkthrough-step">
+          <div class="walkthrough-copy">
+            <span class="walkthrough-index">04 / OPERATE</span>
+            <h3>Use the namespace from anywhere.</h3>
+            <p>Check the YAML state, run a task now, inspect its output, or pause it. The commands work from any directory once the task is registered.</p>
+          </div>
+          <div class="terminal" aria-label="Task management example">
+            <div class="terminal-bar">~</div>
+            <div class="terminal-body">
+              <div class="terminal-line"><span class="prompt">~ $</span> runbinder list</div>
+              <div class="terminal-line muted">ID  NAMESPACE      ACTIVE  YAML  LAST RUN</div>
+              <div class="terminal-line">1   reports.daily  <span class="success">true</span>    <span class="success">OK</span>    <span class="success">06:00:04 (SUCC)</span></div>
+              <div class="terminal-gap"></div>
+              <div class="terminal-line"><span class="prompt">~ $</span> runbinder run reports.daily</div>
+              <div class="terminal-line"><span class="prompt">~ $</span> runbinder log reports.daily</div>
+              <div class="terminal-line"><span class="prompt">~ $</span> runbinder disable reports.daily</div>
+            </div>
+          </div>
         </article>
       </div>
 
