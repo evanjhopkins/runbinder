@@ -59,7 +59,8 @@ func (c *commands) statusCommand() *cobra.Command {
 			if status.PID > 0 {
 				pid = strconv.Itoa(status.PID)
 			}
-			fmt.Fprintf(c.out, "Is Service Running: %s\n", strings.ToUpper(strconv.FormatBool(status.Running)))
+			running := strings.ToUpper(strconv.FormatBool(status.Running))
+			fmt.Fprintln(c.out, c.serviceStatusLine(status.Running, "Is Service Running: "+running))
 			fmt.Fprintf(c.out, "Service PID: %s\n", pid)
 			fmt.Fprintf(c.out, "Last Heartbeat: %s\n", last)
 			fmt.Fprintf(c.out, "Internal Storage: %s\n", status.StorageDir)
@@ -68,7 +69,7 @@ func (c *commands) statusCommand() *cobra.Command {
 				fmt.Fprintln(c.out, "(none)")
 			}
 			for _, line := range status.RecentLogs {
-				fmt.Fprintln(c.out, "-> "+line)
+				fmt.Fprintln(c.out, c.serviceLogLine("-> "+line))
 			}
 			return nil
 		},
