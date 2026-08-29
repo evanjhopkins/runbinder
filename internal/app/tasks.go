@@ -16,9 +16,20 @@ import (
 )
 
 type TaskSummary struct {
-	Task    domain.Task
-	LastRun *domain.Run
+	Task       domain.Task
+	LastRun    *domain.Run
+	Definition DefinitionState
 }
+
+type DefinitionState string
+
+const (
+	DefinitionOK      DefinitionState = "OK"
+	DefinitionChanged DefinitionState = "CNG"
+	DefinitionInvalid DefinitionState = "INV"
+	DefinitionMissing DefinitionState = "MIS"
+	DefinitionUnknown DefinitionState = "---"
+)
 
 type Tasks struct {
 	paths          platform.Paths
@@ -102,9 +113,30 @@ func (t *Tasks) List(ctx context.Context) ([]TaskSummary, error) {
 		if err != nil {
 			return nil, err
 		}
-		summaries = append(summaries, TaskSummary{Task: task, LastRun: lastRun})
+		summaries = append(summaries, TaskSummary{
+			Task:       task,
+			LastRun:    lastRun,
+			Definition: t.definitionState(task),
+		})
 	}
 	return summaries, nil
+}
+
+func (t *Tasks) definitionState(task domain.Task) DefinitionState {
+	if task.SourcePath == "" {
+		return DefinitionUnknown
+	}
+	hash, err := t.definitions.Hash(task.SourcePath)
+	if errors.Is(err, os.ErrNotExist) {
+		return DefinitionMissing
+	}
+	if err != nil {
+		return DefinitionInvalid
+	}
+	if hash != task.Hash {
+		return DefinitionChanged
+	}
+	return DefinitionOK
 }
 
 func (t *Tasks) Log(ctx context.Context, target string, lines int) ([]string, error) {

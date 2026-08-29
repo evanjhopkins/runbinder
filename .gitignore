@@ -1,5 +1,6 @@
 /bin/
 /runbinder
+/docs/internal/
 /coverage.out
 *.test
 .DS_Store

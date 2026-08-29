@@ -17,15 +17,7 @@ func (d *Definitions) Load(path string) (domain.Task, error) {
 	if err != nil {
 		return domain.Task{}, err
 	}
-	data, err := os.ReadFile(abs)
-	if err != nil {
-		return domain.Task{}, fmt.Errorf("read task definition: %w", err)
-	}
-	cfg, err := taskconfig.Parse(data)
-	if err != nil {
-		return domain.Task{}, err
-	}
-	definition, hash, err := cfg.Canonical()
+	cfg, definition, hash, err := d.parse(abs)
 	if err != nil {
 		return domain.Task{}, err
 	}
@@ -53,6 +45,15 @@ func (d *Definitions) Load(path string) (domain.Task, error) {
 	}, nil
 }
 
+func (d *Definitions) Hash(path string) (string, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	_, _, hash, err := d.parse(abs)
+	return hash, err
+}
+
 func (d *Definitions) Namespace(path string) (string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -71,4 +72,20 @@ func (d *Definitions) Write(path string, cfg taskconfig.Config) error {
 		return err
 	}
 	return os.WriteFile(path, []byte(definition), 0o644)
+}
+
+func (d *Definitions) parse(path string) (taskconfig.Config, string, string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return taskconfig.Config{}, "", "", fmt.Errorf("read task definition: %w", err)
+	}
+	cfg, err := taskconfig.Parse(data)
+	if err != nil {
+		return taskconfig.Config{}, "", "", err
+	}
+	definition, hash, err := cfg.Canonical()
+	if err != nil {
+		return taskconfig.Config{}, "", "", err
+	}
+	return cfg, definition, hash, nil
 }

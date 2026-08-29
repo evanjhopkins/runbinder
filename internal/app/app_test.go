@@ -50,13 +50,44 @@ func TestTaskLifecycleFromDefinition(t *testing.T) {
 	if len(summaries) != 1 || summaries[0].Task.Namespace != "example.backup" {
 		t.Fatalf("unexpected task summaries: %#v", summaries)
 	}
+	if summaries[0].Definition != app.DefinitionOK {
+		t.Fatalf("definition state = %q, want %q", summaries[0].Definition, app.DefinitionOK)
+	}
 
-	removed, err := application.Tasks.Remove(ctx, definitionPath)
+	changedDefinition := "namespace: example.backup\ncommand: echo changed\ncron: 0 * * * *\nworking_dir: project\n"
+	if err := os.WriteFile(definitionPath, []byte(changedDefinition), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	assertDefinitionState(t, application, ctx, app.DefinitionChanged)
+
+	invalidDefinition := "namespace: example.backup\ncommand: echo changed\ncron: not-a-cron\n"
+	if err := os.WriteFile(definitionPath, []byte(invalidDefinition), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	assertDefinitionState(t, application, ctx, app.DefinitionInvalid)
+
+	if err := os.Remove(definitionPath); err != nil {
+		t.Fatal(err)
+	}
+	assertDefinitionState(t, application, ctx, app.DefinitionMissing)
+
+	removed, err := application.Tasks.Remove(ctx, "example.backup")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if removed.Namespace != "example.backup" {
 		t.Fatalf("removed namespace = %q", removed.Namespace)
+	}
+}
+
+func assertDefinitionState(t *testing.T, application *app.Application, ctx context.Context, want app.DefinitionState) {
+	t.Helper()
+	summaries, err := application.Tasks.List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(summaries) != 1 || summaries[0].Definition != want {
+		t.Fatalf("definition summaries = %#v, want state %q", summaries, want)
 	}
 }
 

@@ -30,7 +30,7 @@ func TestServiceLogLinesRemainPlainForNonTerminalOutput(t *testing.T) {
 
 func TestTaskListLinesRemainPlainForNonTerminalOutput(t *testing.T) {
 	commands := &commands{out: &bytes.Buffer{}}
-	line := "1  example.task  false  /tmp/example  (none)"
+	line := "1  example.task  false  MIS  /tmp/example  (none)"
 	row := taskListRow{
 		namespace: "example.task", active: "false", workingDir: "/tmp/example", lastRun: "(none)",
 	}

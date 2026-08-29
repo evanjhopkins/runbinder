@@ -7,6 +7,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/evanjhopkins/RunBinder/internal/app"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +27,7 @@ func (c *commands) listCommand() *cobra.Command {
 			}
 			var output bytes.Buffer
 			writer := tabwriter.NewWriter(&output, 0, 4, 2, ' ', 0)
-			fmt.Fprintln(writer, "ID\tNAMESPACE\tACTIVE\tDIRECTORY\tLAST RUN")
+			fmt.Fprintln(writer, "ID\tNAMESPACE\tACTIVE\tYAML\tDIRECTORY\tLAST RUN")
 			rows := make([]taskListRow, 0, len(summaries))
 			for _, summary := range summaries {
 				lastRun := "(none)"
@@ -42,10 +43,11 @@ func (c *commands) listCommand() *cobra.Command {
 				}
 				task := summary.Task
 				active := strconv.FormatBool(task.Active)
-				fmt.Fprintf(writer, "%d\t%s\t%s\t%s\t%s\n", task.ID, task.Namespace, active, task.WorkingDir, lastRun)
+				fmt.Fprintf(writer, "%d\t%s\t%s\t%s\t%s\t%s\n", task.ID, task.Namespace, active, summary.Definition, task.WorkingDir, lastRun)
 				rows = append(rows, taskListRow{
 					namespace:  task.Namespace,
 					active:     active,
+					definition: summary.Definition,
 					workingDir: task.WorkingDir,
 					lastRun:    lastRun,
 					enabled:    task.Active,
@@ -69,6 +71,7 @@ func (c *commands) listCommand() *cobra.Command {
 type taskListRow struct {
 	namespace  string
 	active     string
+	definition app.DefinitionState
 	workingDir string
 	lastRun    string
 	enabled    bool

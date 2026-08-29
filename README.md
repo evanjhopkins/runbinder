@@ -189,7 +189,7 @@ after a machine reboot or process crash.
 | `runbinder enable TARGET` | Enable scheduled execution |
 | `runbinder disable TARGET` | Pause scheduled execution |
 | `runbinder remove TARGET` | Remove a registration |
-| `runbinder list` | Show tasks, state, directory, and latest result |
+| `runbinder list` | Show tasks, YAML drift state, directory, and latest result |
 | `runbinder log [-n 20] TARGET` | Show recent task output |
 | `runbinder status` | Show service health and internal logs |
 | `runbinder service [-j 4]` | Run the scheduler in the foreground |
