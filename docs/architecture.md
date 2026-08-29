@@ -33,8 +33,10 @@ storage. This makes invalid tasks a CLI error instead of a service-time surprise
 `internal/store` is the state boundary. The rest of the application uses its
 repository interface and does not know SQL. SQLite runs in WAL mode with a busy
 timeout because the service and short-lived CLI processes access it together.
-Schema migrations are applied at startup so the database can evolve without
-coupling the rest of the application to a particular schema version.
+Numbered, transactional migrations are recorded in `schema_migrations` at
+startup. Unversioned pre-RunBinder databases are intentionally rejected rather
+than carrying compatibility code; this project is still pre-v1 and local state
+can be reset with `runbinder nuke --yes`.
 
 `internal/scheduler` is a pure planner. Given a task and a time range, it returns
 the due executions in `(after, through]`. It does no sleeping, database work, or

@@ -87,7 +87,33 @@ func TestSQLiteTaskLifecycle(t *testing.T) {
 	}
 }
 
-func TestSQLiteMigratesPythonSchema(t *testing.T) {
+func TestSQLiteRecordsSchemaVersion(t *testing.T) {
+	repository, err := OpenSQLite(filepath.Join(t.TempDir(), "runbinder.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer repository.Close()
+
+	var version int
+	if err := repository.db.QueryRow(`SELECT version FROM schema_migrations`).Scan(&version); err != nil {
+		t.Fatal(err)
+	}
+	if version != 1 {
+		t.Fatalf("schema version = %d, want 1", version)
+	}
+	columns, err := tableColumns(repository.db, "tasks")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !columns["hash"] {
+		t.Fatal("tasks.hash is missing")
+	}
+	if columns["md5"] {
+		t.Fatal("tasks.md5 should not exist")
+	}
+}
+
+func TestSQLiteRejectsUnversionedLegacySchema(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "runbinder.db")
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
@@ -95,9 +121,6 @@ func TestSQLiteMigratesPythonSchema(t *testing.T) {
 	}
 	statements := []string{
 		`CREATE TABLE Tasks (id INTEGER PRIMARY KEY, namespace TEXT UNIQUE NOT NULL, active BOOLEAN NOT NULL, definition TEXT NOT NULL, md5 TEXT NOT NULL, working_dir TEXT NOT NULL)`,
-		`CREATE TABLE HeartBeat (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, last DATETIME NOT NULL)`,
-		`CREATE TABLE Run (id INTEGER PRIMARY KEY, namespace TEXT NOT NULL, execution_time DATETIME NOT NULL, status BOOLEAN NOT NULL)`,
-		`INSERT INTO Tasks(namespace, active, definition, md5, working_dir) VALUES ('legacy', 1, 'old', 'hash', '/tmp')`,
 	}
 	for _, statement := range statements {
 		if _, err := db.Exec(statement); err != nil {
@@ -108,16 +131,24 @@ func TestSQLiteMigratesPythonSchema(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	repository, err := OpenSQLite(path)
+	if _, err := OpenSQLite(path); err == nil {
+		t.Fatal("expected unversioned schema to be rejected")
+	}
+}
+
+func tableColumns(db *sql.DB, table string) (map[string]bool, error) {
+	rows, err := db.Query(`SELECT name FROM pragma_table_info(?)`, table)
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
-	defer repository.Close()
-	task, err := repository.Task(context.Background(), "legacy")
-	if err != nil {
-		t.Fatal(err)
+	defer rows.Close()
+	columns := make(map[string]bool)
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		columns[name] = true
 	}
-	if task.Namespace != "legacy" || !task.Active {
-		t.Fatalf("migrated task = %#v", task)
-	}
+	return columns, rows.Err()
 }
