@@ -30,6 +30,10 @@ func (p *Planner) Due(task domain.Task, after, through time.Time) ([]domain.Exec
 	if err != nil {
 		return nil, fmt.Errorf("task %q: %w", task.Namespace, err)
 	}
+	location, err := cfg.Location(p.location)
+	if err != nil {
+		return nil, fmt.Errorf("task %q: %w", task.Namespace, err)
+	}
 
 	times := make(map[int64]time.Time)
 	add := func(value time.Time) {
@@ -43,14 +47,14 @@ func (p *Planner) Due(task domain.Task, after, through time.Time) ([]domain.Exec
 		if err != nil {
 			return nil, err
 		}
-		for next := schedule.Next(after.In(p.location)); !next.After(through); next = schedule.Next(next) {
+		for next := schedule.Next(after.In(location)); !next.After(through); next = schedule.Next(next) {
 			add(next)
 		}
 	}
 
 	if cfg.Schedule != nil {
-		firstDate := midnight(after.In(p.location))
-		lastDate := midnight(through.In(p.location))
+		firstDate := midnight(after.In(location))
+		lastDate := midnight(through.In(location))
 		for date := firstDate; !date.After(lastDate); date = date.AddDate(0, 0, 1) {
 			for _, raw := range cfg.Schedule.TimeOfDay {
 				clock, _ := taskconfig.ParseClock(raw)

@@ -53,6 +53,9 @@ func TestTaskLifecycleFromDefinition(t *testing.T) {
 	if summaries[0].Definition != app.DefinitionOK {
 		t.Fatalf("definition state = %q, want %q", summaries[0].Definition, app.DefinitionOK)
 	}
+	if summaries[0].Timezone != "LOCAL" {
+		t.Fatalf("timezone = %q, want LOCAL", summaries[0].Timezone)
+	}
 
 	changedDefinition := "namespace: example.backup\ncommand: echo changed\ncron: 0 * * * *\nworking_dir: project\n"
 	if err := os.WriteFile(definitionPath, []byte(changedDefinition), 0o644); err != nil {

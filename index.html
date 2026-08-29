@@ -676,6 +676,7 @@
               <div class="terminal-line">  - <span class="yaml-value">./scripts/build-report.sh</span></div>
               <div class="terminal-line"><span class="yaml-key">cron:</span> <span class="yaml-value">"0 6 * * *"</span></div>
               <div class="terminal-line"><span class="yaml-key">working_dir:</span> <span class="yaml-value">.</span></div>
+              <div class="terminal-line"><span class="yaml-key">timezone:</span> <span class="yaml-value">America/New_York</span></div>
             </div>
           </div>
         </article>
@@ -725,8 +726,8 @@
             <div class="terminal-bar">~</div>
             <div class="terminal-body">
               <div class="terminal-line"><span class="prompt">~ $</span> runbinder list</div>
-              <div class="terminal-line muted">ID  NAMESPACE      ACTIVE  YAML  LAST RUN</div>
-              <div class="terminal-line">1   reports.daily  <span class="success">true</span>    <span class="success">OK</span>    <span class="success">06:00:04 (SUCC)</span></div>
+              <div class="terminal-line muted">ID  NAMESPACE      ACTIVE  YAML  TZ                LAST RUN</div>
+              <div class="terminal-line">1   reports.daily  <span class="success">true</span>    <span class="success">OK</span>    America/New_York  <span class="success">06:00:04 (SUCC)</span></div>
               <div class="terminal-gap"></div>
               <div class="terminal-line"><span class="prompt">~ $</span> runbinder run reports.daily <span class="muted"># ad hoc one-off run</span></div>
               <div class="terminal-line"><span class="prompt">~ $</span> runbinder log reports.daily</div>

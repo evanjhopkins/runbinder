@@ -3,6 +3,7 @@ package taskconfig
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseCommandForms(t *testing.T) {
@@ -45,6 +46,7 @@ func TestParseRejectsInvalidDefinitions(t *testing.T) {
 		{"missing schedule", "namespace: x\ncommand: echo x\n", "at least one"},
 		{"zero interval", "namespace: x\ncommand: echo x\nschedule:\n  window_interval:\n    start: '10:00:00'\n    stop: '11:00:00'\n    interval_sec: 0\n", "greater than zero"},
 		{"backward window", "namespace: x\ncommand: echo x\nschedule:\n  window_interval:\n    start: '11:00:00'\n    stop: '10:00:00'\n    interval_sec: 60\n", "must not be before"},
+		{"invalid timezone", "namespace: x\ncommand: echo x\ncron: '* * * * *'\ntimezone: Mars/Olympus_Mons\n", "invalid timezone"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -53,6 +55,32 @@ func TestParseRejectsInvalidDefinitions(t *testing.T) {
 				t.Fatalf("error = %v, want substring %q", err, test.want)
 			}
 		})
+	}
+}
+
+func TestLocationUsesConfiguredOrDefaultTimezone(t *testing.T) {
+	configured, err := Parse([]byte("namespace: x\ncommand: echo x\ncron: '* * * * *'\ntimezone: America/New_York\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	location, err := configured.Location(time.UTC)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if location.String() != "America/New_York" {
+		t.Fatalf("configured location = %q", location)
+	}
+
+	defaulted, err := Parse([]byte("namespace: x\ncommand: echo x\ncron: '* * * * *'\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	location, err = defaulted.Location(time.UTC)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if location != time.UTC {
+		t.Fatalf("default location = %q, want UTC", location)
 	}
 }
 

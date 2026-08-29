@@ -19,6 +19,7 @@ type TaskSummary struct {
 	Task       domain.Task
 	LastRun    *domain.Run
 	Definition DefinitionState
+	Timezone   string
 }
 
 type DefinitionState string
@@ -113,13 +114,29 @@ func (t *Tasks) List(ctx context.Context) ([]TaskSummary, error) {
 		if err != nil {
 			return nil, err
 		}
+		timezone, err := taskTimezone(task)
+		if err != nil {
+			return nil, err
+		}
 		summaries = append(summaries, TaskSummary{
 			Task:       task,
 			LastRun:    lastRun,
 			Definition: t.definitionState(task),
+			Timezone:   timezone,
 		})
 	}
 	return summaries, nil
+}
+
+func taskTimezone(task domain.Task) (string, error) {
+	cfg, err := taskconfig.Parse([]byte(task.Definition))
+	if err != nil {
+		return "", fmt.Errorf("task %q: %w", task.Namespace, err)
+	}
+	if cfg.Timezone == "" {
+		return "LOCAL", nil
+	}
+	return cfg.Timezone, nil
 }
 
 func (t *Tasks) definitionState(task domain.Task) DefinitionState {

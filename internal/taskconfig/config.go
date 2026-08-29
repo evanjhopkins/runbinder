@@ -55,6 +55,7 @@ type Config struct {
 	Cron         string    `yaml:"cron,omitempty"`
 	Schedule     *Schedule `yaml:"schedule,omitempty"`
 	WorkingDir   string    `yaml:"working_dir,omitempty"`
+	Timezone     string    `yaml:"timezone,omitempty"`
 	AllowOverlap bool      `yaml:"allow_overlap,omitempty"`
 }
 
@@ -126,7 +127,24 @@ func (c Config) Validate() error {
 	if !hasSchedule {
 		return errors.New("at least one cron or schedule entry is required")
 	}
+	if _, err := c.Location(time.Local); err != nil {
+		return err
+	}
 	return nil
+}
+
+func (c Config) Location(defaultLocation *time.Location) (*time.Location, error) {
+	if c.Timezone == "" {
+		if defaultLocation == nil {
+			return time.Local, nil
+		}
+		return defaultLocation, nil
+	}
+	location, err := time.LoadLocation(c.Timezone)
+	if err != nil {
+		return nil, fmt.Errorf("invalid timezone %q: %w", c.Timezone, err)
+	}
+	return location, nil
 }
 
 func (c Config) Canonical() (string, string, error) {

@@ -111,13 +111,20 @@ schedule:
 # Defaults to the directory containing this file. Relative paths start there.
 working_dir: .
 
+# Optional: evaluate this task's schedule in an IANA time zone.
+timezone: America/New_York
+
 # Runs of one task do not overlap unless explicitly allowed.
 allow_overlap: false
 ```
 
-All schedules use the service's local time zone. Clock values must use
-`HH:MM:SS`. When multiple schedule forms produce the same instant, RunBinder
-runs the task once.
+Schedules use the service's local time zone unless a task specifies an IANA
+`timezone`, such as `America/New_York`. RunBinder includes the IANA database in
+its binary, so these definitions work on minimal server images too. Clock values
+must use `HH:MM:SS`. At daylight-saving transitions, schedules follow Go's IANA
+time-zone rules; avoid ambiguous transition-hour schedules when exact once-only
+wall-clock behavior is required. When multiple schedule forms produce the same
+instant, RunBinder runs the task once.
 
 Commands are executed through the platform shell in `working_dir`. Standard
 output and standard error are appended to `.runbinder.log` in that directory.
