@@ -1,19 +1,30 @@
 # Architecture
 
-RunBinder is organized around four independent concepts rather than around CLI
-commands. Dependencies point inward toward typed domain values:
+RunBinder is organized around application use cases and independent technical
+boundaries rather than around CLI commands. Dependencies point inward toward
+typed domain values:
 
 ```text
-CLI / service process
-        |
-        +--> task configuration --> scheduler planner
-        |
-        +--> repository interface --> SQLite
-        |
-        +--> process runner --> shell + task log
+CLI commands --> application use cases
+                       |
+                       +--> task configuration --> scheduler planner
+                       |
+                       +--> repository interface --> SQLite
+                       |
+                       +--> process runner --> shell + task log
 ```
 
 ## Boundaries
+
+`internal/cli` is a thin delivery adapter. Its files construct Cobra commands,
+validate command-line-only concerns, prompt for input, handle terminal signals,
+and render results. It does not open the database or coordinate service
+processes.
+
+`internal/app` owns RunBinder's use cases. It resolves task references, controls
+repository lifetimes, executes immediate runs, and manages the foreground or
+detached scheduling service. Keeping these operations independent of Cobra
+makes them reusable and testable as complete workflows.
 
 `internal/taskconfig` owns the public YAML contract. It performs strict parsing,
 validation, canonical serialization, and hashing before a definition reaches
