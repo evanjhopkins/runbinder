@@ -10,6 +10,18 @@ reviewable; runtime state stays local.
 RunBinder is one Go binary backed by SQLite. It does not require a language
 runtime, external database, or system cron configuration.
 
+## Features
+
+- Version-controlled YAML definitions with strict validation.
+- Cron expressions, fixed times of day, and fixed intervals within a daily
+  window; schedule forms can be combined.
+- Per-task IANA time zones and optional overlapping execution.
+- Foreground or detached scheduling with a configurable global concurrency
+  limit and misfire grace period.
+- Immediate execution, enable/disable controls, definition-drift reporting,
+  run history, task output, and service health from one CLI.
+- Local SQLite state with no external service dependency.
+
 ## How it works
 
 ```text
@@ -22,7 +34,18 @@ The registry stores a validated snapshot of each definition. This is
 intentional: editing a YAML file does not change a running schedule until you
 apply it with `runbinder update`.
 
-## Install
+## Requirements and platforms
+
+Building requires Go 1.24 or newer. At runtime, task commands require the tools
+they invoke and a writable working directory. RunBinder uses `/bin/sh -c` on
+non-Windows systems and `cmd.exe /C` on Windows.
+
+Linux and macOS support the complete service lifecycle, including detached
+operation, process stopping, and a per-storage-directory service lock. Windows
+can execute tasks and run the scheduler in the foreground, but detached mode,
+service stopping, and singleton enforcement are not implemented.
+
+## Installation
 
 Install the latest release with Go 1.24 or newer:
 
@@ -81,7 +104,7 @@ runbinder service stop
 You can also run `runbinder init` inside a project to generate and optionally
 register a starter definition interactively.
 
-## Task definitions
+## Configuration
 
 A definition requires a unique `namespace`, a `command`, and at least one
 schedule. Unknown fields and invalid schedules are rejected during `add` or
@@ -128,7 +151,19 @@ instant, RunBinder runs the task once.
 
 Commands are executed through the platform shell in `working_dir`. Standard
 output and standard error are appended to `.runbinder.log` in that directory.
-Treat task definitions like shell scripts: only register files you trust.
+Tasks with the same working directory therefore share one output log. Treat
+task definitions like shell scripts: only register files you trust.
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `namespace` | Yes | Unique name in the local registry |
+| `command` | Yes | Shell command string, or a list joined with `&&` |
+| `cron` | One schedule required | Five-field cron, optional-seconds six-field cron, or a cron descriptor |
+| `schedule.time_of_day` | One schedule required | List of local `HH:MM:SS` times |
+| `schedule.window_interval` | One schedule required | Inclusive daily window with a positive `interval_sec`; overnight windows are not supported |
+| `working_dir` | No | Absolute path, or path relative to the definition; defaults to the definition directory |
+| `timezone` | No | IANA time zone; defaults to the service's local zone |
+| `allow_overlap` | No | Permit overlapping scheduled runs of this namespace; defaults to `false` |
 
 ## Task lifecycle
 
@@ -157,6 +192,10 @@ runbinder remove reports.daily
 `remove` deletes the registration, not the YAML file or task-output log. Existing
 run history remains in local storage until `runbinder nuke`.
 
+`run` executes the registered snapshot even when the task is disabled. It does
+not apply the scheduler's overlap guard, so an immediate run can overlap a
+scheduled run.
+
 ## Operating the service
 
 Run in the background for normal use:
@@ -175,15 +214,17 @@ runbinder service \
   --misfire-grace 1m
 ```
 
-Different tasks may run concurrently up to the configured limit. A task does
-not overlap itself unless `allow_overlap` is true. If the service is delayed or
-the machine wakes from sleep, occurrences older than `--misfire-grace` are
-skipped instead of creating an unbounded catch-up queue.
+Different tasks may run concurrently up to the configured limit. Scheduled runs
+of one task do not overlap unless `allow_overlap` is true. If a running service
+is delayed or the machine wakes from sleep, occurrences older than
+`--misfire-grace` are skipped instead of creating an unbounded catch-up queue.
+The cursor is not persisted, so occurrences missed while the service is stopped
+are not recovered when it starts again.
 
-Only one service can use a RunBinder storage directory at a time. Detached mode
-persists the service PID, sends `SIGTERM` for graceful shutdown, and writes
-service output to RunBinder's internal log. It does not automatically restart
-after a machine reboot or process crash.
+On Unix, only one service can use a RunBinder storage directory at a time.
+Detached mode persists the service PID, sends `SIGTERM` for graceful shutdown,
+and writes service output to RunBinder's internal log. It does not automatically
+restart after a machine reboot or process crash.
 
 ## Command reference
 
@@ -202,7 +243,7 @@ after a machine reboot or process crash.
 | `runbinder service [-j 4]` | Run the scheduler in the foreground |
 | `runbinder service --detach` | Start the scheduler in the background |
 | `runbinder service stop` | Stop the running scheduler |
-| `runbinder nuke` | Delete all registrations and run history |
+| `runbinder nuke [-y]` | Delete the registry database and run history |
 
 Run `runbinder COMMAND --help` for flags and command-specific usage.
 
@@ -216,7 +257,21 @@ RunBinder stores its database, service lock, PID file, and internal log under:
 
 Set `RUNBINDER_HOME` to use another location. `runbinder status` prints the
 active location. `runbinder nuke` removes the database and history but leaves
-task definitions and task-output logs untouched.
+task definitions, task-output logs, and the internal service log untouched.
+
+## Project structure
+
+```text
+cmd/runbinder/        executable entry point
+internal/cli/         Cobra commands and terminal output
+internal/app/         application workflows
+internal/taskconfig/  YAML parsing and validation
+internal/scheduler/   occurrence planning
+internal/service/     scheduler loop and process control
+internal/runner/      shell execution and result recording
+internal/store/       SQLite repository and migrations
+internal/platform/    state and log paths
+```
 
 ## Development
 
@@ -241,3 +296,7 @@ go build -o bin/runbinder ./cmd/runbinder
 
 See [docs/architecture.md](docs/architecture.md) for implementation boundaries
 and scheduler design decisions.
+
+## License
+
+[MIT](LICENSE) Copyright (c) 2025 Evan Hopkins.
