@@ -69,8 +69,15 @@ func TestSQLiteTaskLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	heartbeat, err := repository.Heartbeat(ctx, "service")
-	if err != nil || heartbeat == nil || !heartbeat.Running || !heartbeat.Last.Equal(now) {
+	if err != nil || heartbeat == nil || !heartbeat.Running || !heartbeat.Last.Equal(now) || !heartbeat.StartedAt.Equal(now) {
 		t.Fatalf("heartbeat = %v, err = %v", heartbeat, err)
+	}
+	if err := repository.UpdateHeartbeat(ctx, "service", now.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	heartbeat, err = repository.Heartbeat(ctx, "service")
+	if err != nil || heartbeat == nil || !heartbeat.StartedAt.Equal(now) {
+		t.Fatalf("heartbeat start changed during update: %v, err = %v", heartbeat, err)
 	}
 	if err := repository.StopHeartbeat(ctx, "service", now.Add(time.Second)); err != nil {
 		t.Fatal(err)
@@ -78,6 +85,14 @@ func TestSQLiteTaskLifecycle(t *testing.T) {
 	heartbeat, err = repository.Heartbeat(ctx, "service")
 	if err != nil || heartbeat == nil || heartbeat.Running {
 		t.Fatalf("stopped heartbeat = %v, err = %v", heartbeat, err)
+	}
+	restartedAt := now.Add(2 * time.Minute)
+	if err := repository.UpdateHeartbeat(ctx, "service", restartedAt); err != nil {
+		t.Fatal(err)
+	}
+	heartbeat, err = repository.Heartbeat(ctx, "service")
+	if err != nil || heartbeat == nil || !heartbeat.StartedAt.Equal(restartedAt) {
+		t.Fatalf("heartbeat start was not reset: %v, err = %v", heartbeat, err)
 	}
 	if err := repository.RemoveTask(ctx, task.Namespace); err != nil {
 		t.Fatal(err)
@@ -95,11 +110,11 @@ func TestSQLiteRecordsSchemaVersion(t *testing.T) {
 	defer repository.Close()
 
 	var version int
-	if err := repository.db.QueryRow(`SELECT version FROM schema_migrations`).Scan(&version); err != nil {
+	if err := repository.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil {
 		t.Fatal(err)
 	}
-	if version != 1 {
-		t.Fatalf("schema version = %d, want 1", version)
+	if version != 2 {
+		t.Fatalf("schema version = %d, want 2", version)
 	}
 	columns, err := tableColumns(repository.db, "tasks")
 	if err != nil {

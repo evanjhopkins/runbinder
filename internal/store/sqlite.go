@@ -166,8 +166,10 @@ func (s *SQLite) RecordRun(ctx context.Context, run domain.Run) error {
 
 func (s *SQLite) UpdateHeartbeat(ctx context.Context, name string, at time.Time) error {
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO service_heartbeats(name, last_at, running) VALUES (?, ?, 1)
-		ON CONFLICT(name) DO UPDATE SET last_at = excluded.last_at, running = 1`, name, formatTime(at))
+		INSERT INTO service_heartbeats(name, last_at, running, started_at) VALUES (?, ?, 1, ?)
+		ON CONFLICT(name) DO UPDATE SET last_at = excluded.last_at, running = 1,
+			started_at = CASE WHEN service_heartbeats.started_at = '' THEN excluded.started_at ELSE service_heartbeats.started_at END`,
+		name, formatTime(at), formatTime(at))
 	if err != nil {
 		return fmt.Errorf("update heartbeat: %w", err)
 	}
@@ -176,8 +178,8 @@ func (s *SQLite) UpdateHeartbeat(ctx context.Context, name string, at time.Time)
 
 func (s *SQLite) StopHeartbeat(ctx context.Context, name string, at time.Time) error {
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO service_heartbeats(name, last_at, running) VALUES (?, ?, 0)
-		ON CONFLICT(name) DO UPDATE SET last_at = excluded.last_at, running = 0`, name, formatTime(at))
+		INSERT INTO service_heartbeats(name, last_at, running, started_at) VALUES (?, ?, 0, '')
+		ON CONFLICT(name) DO UPDATE SET last_at = excluded.last_at, running = 0, started_at = ''`, name, formatTime(at))
 	if err != nil {
 		return fmt.Errorf("stop heartbeat: %w", err)
 	}
@@ -185,16 +187,16 @@ func (s *SQLite) StopHeartbeat(ctx context.Context, name string, at time.Time) e
 }
 
 func (s *SQLite) Heartbeat(ctx context.Context, name string) (*domain.Heartbeat, error) {
-	var raw string
+	var raw, startedRaw string
 	var running bool
-	err := s.db.QueryRowContext(ctx, `SELECT last_at, running FROM service_heartbeats WHERE name = ?`, name).Scan(&raw, &running)
+	err := s.db.QueryRowContext(ctx, `SELECT last_at, running, started_at FROM service_heartbeats WHERE name = ?`, name).Scan(&raw, &running, &startedRaw)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get heartbeat: %w", err)
 	}
-	return &domain.Heartbeat{Last: parseStoredTime(raw), Running: running}, nil
+	return &domain.Heartbeat{Last: parseStoredTime(raw), StartedAt: parseStoredTime(startedRaw), Running: running}, nil
 }
 
 type scanner interface {

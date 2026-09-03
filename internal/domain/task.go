@@ -25,8 +25,9 @@ type Run struct {
 }
 
 type Heartbeat struct {
-	Last    time.Time
-	Running bool
+	Last      time.Time
+	StartedAt time.Time
+	Running   bool
 }
 
 type Execution struct {

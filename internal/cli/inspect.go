@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/evanjhopkins/RunBinder/internal/app"
 	"github.com/spf13/cobra"
@@ -90,8 +91,16 @@ func (c *commands) statusCommand() *cobra.Command {
 				return err
 			}
 			last, pid := "(none)", "(none)"
+			timeAlive := "(none)"
 			if status.Heartbeat != nil {
 				last = status.Heartbeat.Last.Local().Format("2006-01-02 15:04:05")
+				if status.Running {
+					startedAt := status.Heartbeat.StartedAt
+					if startedAt.IsZero() {
+						startedAt = status.Heartbeat.Last
+					}
+					timeAlive = formatTimeAlive(time.Since(startedAt))
+				}
 			}
 			if status.PID > 0 {
 				pid = strconv.Itoa(status.PID)
@@ -100,6 +109,7 @@ func (c *commands) statusCommand() *cobra.Command {
 			fmt.Fprintln(c.out, c.serviceStatusLine(status.Running, "Is Service Running: "+running))
 			fmt.Fprintf(c.out, "Service PID: %s\n", pid)
 			fmt.Fprintf(c.out, "Last Heartbeat: %s\n", last)
+			fmt.Fprintf(c.out, "Time Alive: %s\n", timeAlive)
 			fmt.Fprintf(c.out, "Internal Storage: %s\n", status.StorageDir)
 			fmt.Fprintln(c.out, "Recent Logs:")
 			if len(status.RecentLogs) == 0 {
@@ -111,6 +121,14 @@ func (c *commands) statusCommand() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func formatTimeAlive(alive time.Duration) string {
+	if alive < 0 {
+		alive = 0
+	}
+	minutes := int(alive / time.Minute)
+	return fmt.Sprintf("%dd %dh %dm", minutes/(24*60), (minutes/60)%24, minutes%60)
 }
 
 func (c *commands) logCommand() *cobra.Command {

@@ -44,6 +44,13 @@ var migrations = []migration{
 			`CREATE INDEX idx_runs_namespace_started_at ON runs(namespace, started_at DESC)`,
 		},
 	},
+	{
+		version: 2,
+		statements: []string{
+			`ALTER TABLE service_heartbeats ADD COLUMN started_at TEXT NOT NULL DEFAULT ''`,
+			`UPDATE service_heartbeats SET started_at = last_at WHERE started_at = ''`,
+		},
+	},
 }
 
 func (s *SQLite) migrate(ctx context.Context) error {

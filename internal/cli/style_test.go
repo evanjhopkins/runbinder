@@ -3,7 +3,28 @@ package cli
 import (
 	"bytes"
 	"testing"
+	"time"
 )
+
+func TestFormatTimeAlive(t *testing.T) {
+	tests := []struct {
+		name string
+		age  time.Duration
+		want string
+	}{
+		{name: "minutes", age: 6*time.Minute + 59*time.Second, want: "0d 0h 6m"},
+		{name: "hours", age: 12*time.Hour + 1*time.Minute, want: "0d 12h 1m"},
+		{name: "days", age: 1*24*time.Hour + 12*time.Hour + time.Minute, want: "1d 12h 1m"},
+		{name: "negative", age: -time.Minute, want: "0d 0h 0m"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := formatTimeAlive(test.age); got != test.want {
+				t.Fatalf("time alive = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
 
 func TestServiceStatusLinesRemainPlainForNonTerminalOutput(t *testing.T) {
 	commands := &commands{out: &bytes.Buffer{}}

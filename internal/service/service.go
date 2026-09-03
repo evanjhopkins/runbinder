@@ -46,10 +46,15 @@ func (s *Service) Run(ctx context.Context) error {
 	if err := s.logger.Write("RunBinder service started"); err != nil {
 		return fmt.Errorf("write service log: %w", err)
 	}
+	startedAt := time.Now()
+	// Clear a stale running heartbeat before recording this service instance.
+	if err := s.repository.StopHeartbeat(ctx, "service", startedAt); err != nil {
+		return err
+	}
 	defer func() {
 		_ = s.repository.StopHeartbeat(context.Background(), "service", time.Now())
 	}()
-	if err := s.repository.UpdateHeartbeat(ctx, "service", time.Now()); err != nil {
+	if err := s.repository.UpdateHeartbeat(ctx, "service", startedAt); err != nil {
 		return err
 	}
 
