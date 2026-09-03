@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="RunBinder keeps task schedules with your code for projects running directly on a server.">
+  <meta name="description" content="RunBinder is a local scheduler for shell commands defined in version-controlled YAML files.">
   <meta name="theme-color" content="#f7f7f4">
-  <title>RunBinder | task schedules that live with your code</title>
+  <title>RunBinder | file-based command scheduling</title>
   <style>
     :root {
       --bg: #f7f7f4;
@@ -256,6 +256,53 @@
       padding: 120px 0;
     }
 
+    .capabilities {
+      padding: 112px 0 28px;
+    }
+
+    .capability-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      border-top: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+    }
+
+    .capability {
+      min-height: 250px;
+      padding: 30px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.42);
+    }
+
+    .capability-number {
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+
+    .capability h3 {
+      margin: 54px 0 12px;
+      font-size: 20px;
+      font-weight: 620;
+      letter-spacing: -0.025em;
+    }
+
+    .capability p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .capability code,
+    .install-copy code {
+      font-family: var(--mono);
+      font-size: 0.88em;
+    }
+
     .section-heading {
       max-width: 650px;
       margin-bottom: 58px;
@@ -371,6 +418,11 @@
 
     .positioning span {
       color: #626b86;
+    }
+
+    .positioning a {
+      text-decoration-thickness: 1px;
+      text-underline-offset: 4px;
     }
 
     .install {
@@ -507,6 +559,18 @@
       .install-grid {
         grid-template-columns: 1fr;
       }
+
+      .capability-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .capability {
+        min-height: 0;
+      }
+
+      .capability h3 {
+        margin-top: 32px;
+      }
     }
 
     @media (max-width: 560px) {
@@ -559,6 +623,10 @@
         padding: 84px 0;
       }
 
+      .capabilities {
+        padding-top: 76px;
+      }
+
       .positioning {
         margin-top: 56px;
         padding: 30px;
@@ -606,6 +674,7 @@
     </a>
     <nav class="nav-links" aria-label="Primary navigation">
       <a href="#how">How it works</a>
+      <a href="#install">Install</a>
       <a href="https://github.com/evanjhopkins/RunBinder">GitHub</a>
     </nav>
   </header>
@@ -613,11 +682,11 @@
   <main id="top">
     <section class="wrap hero">
       <div class="hero-copy">
-        <p class="kicker">File-based task scheduling</p>
-        <h1>Task schedules that live with your code.</h1>
+        <p class="kicker">Local command scheduling</p>
+        <h1>Keep the schedule with the code.</h1>
         <p class="lead">
-          Define tasks beside your project, commit them with your code, then
-          register once and run them from anywhere.
+          Define shell commands and schedules in YAML, commit them with your
+          project, and run them through one local service backed by SQLite.
         </p>
         <div class="actions">
           <a class="button primary" href="#install">Install RunBinder</a>
@@ -635,8 +704,8 @@
           <div class="terminal-line success">[RUNBINDER] Task "reports.daily" completed successfully.</div>
           <div class="terminal-gap"></div>
           <div class="terminal-line"><span class="prompt">~ $</span> runbinder list</div>
-          <div class="terminal-line muted">ID  NAMESPACE      ACTIVE  DIRECTORY    LAST RUN</div>
-          <div class="terminal-line">1   reports.daily  true    ./reporting  <span class="success">06:00:04 (SUCC)</span></div>
+          <div class="terminal-line muted">ID  NAMESPACE      ACTIVE  YAML  TZ                DIRECTORY       LAST RUN</div>
+          <div class="terminal-line">1   reports.daily  true    OK    America/New_York  /srv/reporting  <span class="success">2026-09-03 06:00:04 (SUCC)</span></div>
           <div class="terminal-gap"></div>
           <div class="terminal-line"><span class="prompt">~ $</span> runbinder log -n 2 reports.daily</div>
           <div class="terminal-line muted">Fetched 142 records</div>
@@ -648,17 +717,42 @@
     <aside class="signal" aria-label="Product highlights">
       <div class="wrap signal-row">
         <span>Single Go binary</span>
-        <span>Version-controlled tasks</span>
-        <span>Run from anywhere</span>
-        <span>No external runtime</span>
+        <span>SQLite local state</span>
+        <span>Cron + daily schedules</span>
+        <span>Per-task time zones</span>
       </div>
     </aside>
+
+    <section class="wrap capabilities" aria-labelledby="capabilities-title">
+      <div class="section-heading">
+        <p class="kicker">What it handles</p>
+        <h2 id="capabilities-title">A scheduler with a deliberately small footprint.</h2>
+        <p>RunBinder is for commands that belong to one machine and should remain visible beside the project they operate on.</p>
+      </div>
+      <div class="capability-grid">
+        <article class="capability">
+          <span class="capability-number">01 / SCHEDULE</span>
+          <h3>More than one clock.</h3>
+          <p>Use cron, fixed times of day, or repeated intervals inside a daily window. Combine forms and evaluate each task in its own IANA time zone.</p>
+        </article>
+        <article class="capability">
+          <span class="capability-number">02 / CONTROL</span>
+          <h3>Bounded execution.</h3>
+          <p>Set a global concurrency limit, prevent scheduled runs from overlapping, and discard delayed occurrences beyond a configurable grace period.</p>
+        </article>
+        <article class="capability">
+          <span class="capability-number">03 / INSPECT</span>
+          <h3>State you can see.</h3>
+          <p>List registered tasks, spot definition drift, inspect the latest result, tail command output, and check the scheduler heartbeat from the CLI.</p>
+        </article>
+      </div>
+    </section>
 
     <section class="wrap section" id="how">
       <div class="section-heading">
         <p class="kicker">How it works</p>
         <h2>From a file in your project to a task you can manage anywhere.</h2>
-        <p>One definition, one registration, one small service. Everything else is a normal command.</p>
+        <p>Registration stores a validated snapshot. Source edits remain visible as drift but do not change a running schedule until you update it.</p>
       </div>
 
       <div class="walkthrough">
@@ -685,7 +779,7 @@
           <div class="walkthrough-copy">
             <span class="walkthrough-index">02 / REGISTER</span>
             <h3>Validate it once.</h3>
-            <p>Register the file on the server when you are ready. RunBinder validates the definition and gives the task a namespace you can use from any directory.</p>
+            <p>Register the file when you are ready. RunBinder validates it, resolves the working directory, and stores the snapshot under a namespace you can use from any directory.</p>
           </div>
           <div class="terminal" aria-label="Task registration example">
             <div class="terminal-bar">~/reporting</div>
@@ -702,7 +796,7 @@
           <div class="walkthrough-copy">
             <span class="walkthrough-index">03 / SCHEDULE</span>
             <h3>Start one background service.</h3>
-            <p>RunBinder handles due schedules with bounded concurrency, run history, logs, and overlap protection. It stays out of the way after that.</p>
+            <p>RunBinder handles due schedules with bounded concurrency, run history, logs, and overlap protection. Run it detached on Linux or macOS, or in the foreground under a service manager.</p>
           </div>
           <div class="terminal" aria-label="Background service example">
             <div class="terminal-bar">~/reporting</div>
@@ -726,8 +820,8 @@
             <div class="terminal-bar">~</div>
             <div class="terminal-body">
               <div class="terminal-line"><span class="prompt">~ $</span> runbinder list</div>
-              <div class="terminal-line muted">ID  NAMESPACE      ACTIVE  YAML  TZ                LAST RUN</div>
-              <div class="terminal-line">1   reports.daily  <span class="success">true</span>    <span class="success">OK</span>    America/New_York  <span class="success">06:00:04 (SUCC)</span></div>
+              <div class="terminal-line muted">ID  NAMESPACE      ACTIVE  YAML  TZ                DIRECTORY       LAST RUN</div>
+              <div class="terminal-line">1   reports.daily  <span class="success">true</span>    <span class="success">OK</span>    America/New_York  /srv/reporting  <span class="success">2026-09-03 06:00:04 (SUCC)</span></div>
               <div class="terminal-gap"></div>
               <div class="terminal-line"><span class="prompt">~ $</span> runbinder run reports.daily <span class="muted"># ad hoc one-off run</span></div>
               <div class="terminal-line"><span class="prompt">~ $</span> runbinder log reports.daily</div>
@@ -742,9 +836,9 @@
       <div class="positioning">
         <p class="kicker">Right-sized orchestration</p>
         <p>
-          Lightweight task scheduling for projects that run directly on a
-          server. <span>Natural for solo work and useful for teams that want
-          straightforward production jobs to stay straightforward.</span>
+          Built for jobs that belong to one machine, not distributed workflows.
+          <span>Definitions stay in Git; registrations, run history, and service
+          health stay local. See the <a href="https://github.com/evanjhopkins/RunBinder#configuration">configuration reference</a> for the full YAML contract.</span>
         </p>
       </div>
     </section>
@@ -756,7 +850,7 @@
           <h2>One command. One binary.</h2>
         </div>
         <div class="install-copy">
-          <p>Install with Go 1.24 or newer, then run <code>runbinder init</code> inside a project.</p>
+          <p>Install with Go 1.24 or newer, ensure your Go binary directory is on <code>PATH</code>, then run <code>runbinder init</code> inside a project. Detached service operation is supported on Linux and macOS.</p>
           <div class="command">
             <code id="install-command">go install github.com/evanjhopkins/RunBinder/cmd/runbinder@latest</code>
             <button class="copy" type="button" data-copy="install-command" aria-label="Copy install command">Copy</button>
