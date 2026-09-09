@@ -23,6 +23,7 @@ type Repository interface {
 	SetTaskActive(context.Context, string, bool) error
 	RemoveTask(context.Context, string) error
 	LastRun(context.Context, string) (*domain.Run, error)
+	ListRuns(context.Context, string, int) ([]domain.Run, error)
 	RecordRun(context.Context, domain.Run) error
 	UpdateHeartbeat(context.Context, string, time.Time) error
 	StopHeartbeat(context.Context, string, time.Time) error

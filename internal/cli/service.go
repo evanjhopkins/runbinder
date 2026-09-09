@@ -9,13 +9,14 @@ import (
 	"time"
 
 	"github.com/evanjhopkins/RunBinder/internal/app"
+	"github.com/evanjhopkins/RunBinder/internal/ui"
 	"github.com/spf13/cobra"
 )
 
 func (c *commands) serviceCommand() *cobra.Command {
 	var concurrency int
 	var misfireGrace time.Duration
-	var detach, detachedChild bool
+	var detach, detachedChild, uiEnabled bool
 	command := &cobra.Command{
 		Use:   "service",
 		Short: "Run the RunBinder scheduling service",
@@ -27,13 +28,16 @@ func (c *commands) serviceCommand() *cobra.Command {
 			if detach && detachedChild {
 				return errors.New("detach and detached-child cannot be used together")
 			}
-			options := app.ServiceOptions{Concurrency: concurrency, MisfireGrace: misfireGrace}
+			options := app.ServiceOptions{Concurrency: concurrency, MisfireGrace: misfireGrace, UI: uiEnabled}
 			if detach {
 				pid, err := c.app.Service.StartDetached(cmd.Context(), options)
 				if err != nil {
 					return err
 				}
 				fmt.Fprintf(c.out, "[RUNBINDER] Service started in the background (PID %d).\n", pid)
+				if uiEnabled {
+					fmt.Fprintf(c.out, "[RUNBINDER] UI available at %s\n", "http://"+ui.DefaultAddress)
+				}
 				return nil
 			}
 			serviceCtx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
@@ -41,12 +45,23 @@ func (c *commands) serviceCommand() *cobra.Command {
 			if !detachedChild {
 				fmt.Fprintln(c.out, "RunBinder service started. Press Ctrl+C to stop.")
 			}
+			var dashboard *ui.Server
+			if uiEnabled {
+				var err error
+				dashboard, err = ui.Start(serviceCtx, c.app, ui.DefaultAddress)
+				if err != nil {
+					return err
+				}
+				defer dashboard.Close()
+				fmt.Fprintf(c.out, "RunBinder UI available at %s\n", dashboard.URL())
+			}
 			return c.app.Service.Run(serviceCtx, options)
 		},
 	}
 	command.Flags().IntVarP(&concurrency, "concurrency", "j", 4, "maximum number of tasks to run concurrently")
 	command.Flags().DurationVar(&misfireGrace, "misfire-grace", time.Minute, "maximum age of a delayed occurrence to run")
 	command.Flags().BoolVarP(&detach, "detach", "d", false, "run the service in the background")
+	command.Flags().BoolVar(&uiEnabled, "ui", false, "serve the local web dashboard")
 	command.Flags().BoolVar(&detachedChild, "detached-child", false, "internal detached service mode")
 	_ = command.Flags().MarkHidden("detached-child")
 	command.AddCommand(c.stopServiceCommand())

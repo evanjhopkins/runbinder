@@ -16,10 +16,10 @@ import (
 )
 
 type TaskSummary struct {
-	Task       domain.Task
-	LastRun    *domain.Run
-	Definition DefinitionState
-	Timezone   string
+	Task       domain.Task     `json:"task"`
+	LastRun    *domain.Run     `json:"last_run"`
+	Definition DefinitionState `json:"definition"`
+	Timezone   string          `json:"timezone"`
 }
 
 type DefinitionState string
@@ -167,6 +167,15 @@ func (t *Tasks) Log(ctx context.Context, target string, lines int) ([]string, er
 		return nil, err
 	}
 	return platform.Tail(filepath.Join(task.WorkingDir, platform.TaskLogName), lines)
+}
+
+func (t *Tasks) Runs(ctx context.Context, namespace string, limit int) ([]domain.Run, error) {
+	repository, err := t.openRepository()
+	if err != nil {
+		return nil, err
+	}
+	defer repository.Close()
+	return repository.ListRuns(ctx, namespace, limit)
 }
 
 func (t *Tasks) Run(ctx context.Context, target string) (domain.Task, error) {

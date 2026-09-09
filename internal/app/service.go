@@ -18,14 +18,15 @@ import (
 type ServiceOptions struct {
 	Concurrency  int
 	MisfireGrace time.Duration
+	UI           bool
 }
 
 type ServiceStatus struct {
-	Running    bool
-	PID        int
-	Heartbeat  *domain.Heartbeat
-	StorageDir string
-	RecentLogs []string
+	Running    bool              `json:"running"`
+	PID        int               `json:"pid"`
+	Heartbeat  *domain.Heartbeat `json:"heartbeat"`
+	StorageDir string            `json:"storage_dir"`
+	RecentLogs []string          `json:"recent_logs"`
 }
 
 type Service struct {
@@ -81,6 +82,9 @@ func (s *Service) StartDetached(ctx context.Context, options ServiceOptions) (in
 		"service", "--detached-child",
 		"--concurrency", strconv.Itoa(options.Concurrency),
 		"--misfire-grace", options.MisfireGrace.String(),
+	}
+	if options.UI {
+		args = append(args, "--ui")
 	}
 	startedAt := time.Now()
 	pid, err := runbinderservice.StartDetached(executable, args, s.paths.StorageDir, s.paths.InternalLog)
@@ -180,6 +184,10 @@ func (s *Service) Status(ctx context.Context) (ServiceStatus, error) {
 	}
 	status.RecentLogs, err = platform.Tail(s.paths.InternalLog, 5)
 	return status, err
+}
+
+func (s *Service) Logs(lines int) ([]string, error) {
+	return platform.Tail(s.paths.InternalLog, lines)
 }
 
 func (s *Service) Reset() (bool, error) {

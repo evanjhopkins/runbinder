@@ -153,6 +153,33 @@ func (s *SQLite) LastRun(ctx context.Context, namespace string) (*domain.Run, er
 	return &run, nil
 }
 
+func (s *SQLite) ListRuns(ctx context.Context, namespace string, limit int) ([]domain.Run, error) {
+	if limit < 1 {
+		return []domain.Run{}, nil
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, namespace, started_at, success, scheduled_at, finished_at, error
+		FROM runs WHERE namespace = ? ORDER BY started_at DESC LIMIT ?`, namespace, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list runs: %w", err)
+	}
+	defer rows.Close()
+
+	runs := make([]domain.Run, 0, limit)
+	for rows.Next() {
+		var run domain.Run
+		var started, scheduled, finished string
+		if err := rows.Scan(&run.ID, &run.Namespace, &started, &run.Success, &scheduled, &finished, &run.Error); err != nil {
+			return nil, fmt.Errorf("read run: %w", err)
+		}
+		run.StartedAt = parseStoredTime(started)
+		run.ScheduledAt = parseStoredTime(scheduled)
+		run.FinishedAt = parseStoredTime(finished)
+		runs = append(runs, run)
+	}
+	return runs, rows.Err()
+}
+
 func (s *SQLite) RecordRun(ctx context.Context, run domain.Run) error {
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO runs(namespace, scheduled_at, started_at, finished_at, success, error)
