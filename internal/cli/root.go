@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.3.0"
+const version = "0.3.1"
 
 type commands struct {
 	app    *app.Application
