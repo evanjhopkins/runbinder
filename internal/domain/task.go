@@ -25,9 +25,9 @@ type Run struct {
 }
 
 type Heartbeat struct {
-	Last      time.Time `json:"last"`
-	StartedAt time.Time `json:"started_at"`
-	Running   bool      `json:"running"`
+	Last      time.Time
+	StartedAt time.Time
+	Running   bool
 }
 
 type Execution struct {

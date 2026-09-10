@@ -241,18 +241,11 @@ restart after a machine reboot or process crash.
 | `runbinder log [-n 20] TARGET` | Show recent task output |
 | `runbinder status` | Show service health and internal logs |
 | `runbinder service [-j 4]` | Run the scheduler in the foreground |
-| `runbinder service --ui` | Run the scheduler with the local web dashboard |
 | `runbinder service --detach` | Start the scheduler in the background |
 | `runbinder service stop` | Stop the running scheduler |
 | `runbinder nuke [-y]` | Delete the registry database and run history |
 
 Run `runbinder COMMAND --help` for flags and command-specific usage.
-
-`runbinder service --ui` serves a mobile-friendly dashboard on port `8787` on
-all network interfaces. The dashboard is read-only and shows service health,
-registered tasks, task output, run history, definitions, and internal service
-logs. Use `runbinder service --detach --ui` to keep the dashboard available with
-a detached service.
 
 ## Local state
 
